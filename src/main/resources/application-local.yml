@@ -1,0 +1,68 @@
+# Local Development Environment Configuration
+
+spring:
+  # Disable AWS Secrets Manager for local development
+  cloud:
+    aws:
+      secretsmanager:
+        enabled: false
+      # LocalStack endpoints for local AWS services
+      s3:
+        endpoint: http://localhost:4566
+      sqs:
+        endpoint: http://localhost:4566
+      ses:
+        endpoint: http://localhost:4566
+      credentials:
+        access-key: test
+        secret-key: test
+
+  # Local Database Configuration (Plain text credentials - LOCAL ONLY)
+  datasource:
+    url: jdbc:mysql://localhost:3306/teachpoint?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: tpuser
+    password: tppass1
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # Local Redis Configuration (No SSL)
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:  # No password for local Redis
+      timeout: 2000
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+
+  # Security - Disabled for local development
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+
+# Local AWS Service Configuration
+aws:
+  s3:
+    bucket-name: ev-plus-reports-local
+  sqs:
+    queue-name: ev-plus-reporting-local-queue
+  email:
+    from-address: noreply-local@evplus.com
+    enabled: false  # Mock email service for local
+
+# Logging - More verbose for local development
+logging:
+  level:
+    com.evplus.report: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    io.awspring.cloud: DEBUG

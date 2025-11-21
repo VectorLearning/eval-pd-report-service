@@ -1,0 +1,61 @@
+# Development Environment Configuration
+
+spring:
+  # AWS Secrets Manager Configuration
+  # Secrets will be loaded from: /secret/eval-pd-report-service/dev
+  cloud:
+    aws:
+      secretsmanager:
+        enabled: true
+        # Secret properties will be auto-loaded:
+        # - spring.datasource.url
+        # - spring.datasource.username
+        # - spring.datasource.password
+        # - spring.data.redis.host
+        # - spring.data.redis.port
+        # - spring.data.redis.password
+
+  # Database Configuration (values loaded from Secrets Manager)
+  datasource:
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # Redis Configuration (values loaded from Secrets Manager)
+  data:
+    redis:
+      timeout: 2000
+      ssl: true  # Enable SSL for AWS ElastiCache
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+
+  # Security - OAuth2 Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OIDC_ISSUER_URI:https://placeholder-oidc-provider.com}  # To be configured
+
+# AWS Service Configuration
+aws:
+  s3:
+    bucket-name: ${S3_BUCKET_NAME:ev-plus-reports-dev}
+  sqs:
+    queue-name: ${SQS_QUEUE_NAME:ev-plus-reporting-dev-queue}
+  email:
+    from-address: ${EMAIL_FROM_ADDRESS:noreply-dev@evplus.com}
+    enabled: true
+
+# Logging
+logging:
+  level:
+    com.evplus.report: INFO
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+    org.hibernate.SQL: INFO

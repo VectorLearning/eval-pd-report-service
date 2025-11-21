@@ -1,0 +1,82 @@
+# EV+ Async Reporting Service - Base Configuration
+# This file contains common configuration shared across all environments
+
+spring:
+  application:
+    name: eval-pd-report-service
+
+  # JPA/Hibernate Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate  # Never auto-create schema in production
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+
+  # Cache Configuration
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000  # 1 hour in milliseconds
+
+  # AWS Cloud Configuration
+  cloud:
+    aws:
+      region:
+        static: us-east-2
+      credentials:
+        instance-profile: true  # Use IRSA (IAM Roles for Service Accounts)
+      secretsmanager:
+        enabled: true  # Will be overridden to false in local profile
+
+# Server Configuration
+server:
+  port: 8080
+  servlet:
+    context-path: /ev-pd-report/v1
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true  # Enable Kubernetes liveness and readiness probes
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
+# Logging Configuration
+logging:
+  level:
+    com.evplus.report: INFO
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# SpringDoc OpenAPI Configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operationsSorter: method
+    tagsSorter: alpha
+  show-actuator: false

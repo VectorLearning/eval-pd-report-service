@@ -1,0 +1,54 @@
+# Staging Environment Configuration
+
+spring:
+  # AWS Secrets Manager Configuration
+  # Secrets will be loaded from: /secret/eval-pd-report-service/stage
+  cloud:
+    aws:
+      secretsmanager:
+        enabled: true
+
+  # Database Configuration (values loaded from Secrets Manager)
+  datasource:
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 10
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # Redis Configuration (values loaded from Secrets Manager)
+  data:
+    redis:
+      timeout: 2000
+      ssl: true
+      lettuce:
+        pool:
+          max-active: 30
+          max-idle: 15
+          min-idle: 10
+
+  # Security - OAuth2 Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OIDC_ISSUER_URI:https://placeholder-oidc-provider.com}
+
+# AWS Service Configuration
+aws:
+  s3:
+    bucket-name: ${S3_BUCKET_NAME:ev-plus-reports-stage}
+  sqs:
+    queue-name: ${SQS_QUEUE_NAME:ev-plus-reporting-stage-queue}
+  email:
+    from-address: ${EMAIL_FROM_ADDRESS:noreply-stage@evplus.com}
+    enabled: true
+
+# Logging
+logging:
+  level:
+    com.evplus.report: INFO
+    org.springframework.web: WARN
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
