@@ -753,8 +753,8 @@ Create `README.md` with:
 - [ ] **Mock email service for local profile**
 - [ ] Application runs locally: `mvn spring-boot:run -Dspring.profiles.active=local`
 - [ ] Local MySQL and Redis connections working
-- [ ] API base path: `/vector-eval/v1/eval-pd-report/`
-- [ ] Swagger UI: `/vector-eval/v1/eval-pd-report/swagger-ui.html`
+- [ ] API base path: `/ev-pd-report/v1/`
+- [ ] Swagger UI: `/ev-pd-report/v1/swagger-ui.html`
 - [ ] README.md with local setup instructions
 
 ---

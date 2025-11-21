@@ -78,9 +78,9 @@ Or with your IDE, set active profile to `local`.
 
 ### 4. Access Application
 
-- **Application**: http://localhost:8080/vector-eval/v1/eval-pd-report
-- **Swagger UI**: http://localhost:8080/vector-eval/v1/eval-pd-report/swagger-ui.html
-- **Health Check**: http://localhost:8080/vector-eval/v1/eval-pd-report/actuator/health
+- **Application**: http://localhost:8080/ev-pd-report/v1
+- **Swagger UI**: http://localhost:8080/ev-pd-report/v1/swagger-ui.html
+- **Health Check**: http://localhost:8080/ev-pd-report/v1/actuator/health
 
 ## Configuration
 
