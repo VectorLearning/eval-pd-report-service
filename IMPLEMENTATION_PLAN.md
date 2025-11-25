@@ -24,8 +24,8 @@
 |-------|-------|-----------|----------|--------|
 | Phase 1: Service Bootstrap | 10 tasks | 0 | 0% | 📋 Not Started |
 | Phase 2: Core Framework | 5 tasks | 0 | 0% | 📋 Not Started |
-| Phase 3: User Activity Report | 3 tasks | 0 | 0% | 📋 Not Started |
-| Phase 4: Async Processing | 5 tasks | 0 | 0% | 📋 Not Started |
+| Phase 4: Async Processing (with Dummy Data) | 6 tasks | 0 | 0% | 📋 Not Started |
+| Phase 3: User Activity Report | 4 tasks | 0 | 0% | 📋 Not Started |
 | Phase 5: Testing & QA | 6 tasks | 0 | 0% | 📋 Not Started |
 | Phase 0: Infrastructure | 6 tasks | 0 | 0% | 📋 Not Started |
 | Phase 6: Observability | 5 tasks | 0 | 0% | 📋 Not Started |
@@ -174,8 +174,8 @@ This implementation plan has been updated based on technical review and optimiza
 3. [Team Roles](#team-roles)
 4. [Phase 1: Service Bootstrap](#phase-1-service-bootstrap--configuration)
 5. [Phase 2: Core Framework](#phase-2-core-reporting-framework)
-6. [Phase 3: User Activity Report](#phase-3-user-activity-report-implementation)
-7. [Phase 4: Async Processing](#phase-4-asynchronous-processing)
+6. [Phase 4: Async Processing (MOVED UP)](#phase-4-asynchronous-processing)
+7. [Phase 3: User Activity Report (MOVED DOWN)](#phase-3-user-activity-report-implementation)
 8. [Phase 5: Testing & QA](#phase-5-testing--quality-assurance)
 9. [Phase 0: Infrastructure (Deferred)](#phase-0-infrastructure-setup-deferred)
 10. [Phase 6: Observability](#phase-6-observability--monitoring)
@@ -217,8 +217,8 @@ This implementation plan has been updated based on technical review and optimiza
 ```
 Week 1-2   ████████  Phase 1: Bootstrap (AWS Secrets Manager, Configs, Error Handling)
 Week 2-4   ████████  Phase 2: Core Framework (Handler Registry, REST API)
-Week 5-6   ████████  Phase 3: User Activity Report (Sync flow)
-Week 7-8   ████████  Phase 4: Async Processing (SQS, S3, Email)
+Week 5-6   ████████  Phase 4: Async Processing (SQS, S3, Notification Queue) - MOVED UP
+Week 7-8   ████████  Phase 3: User Activity Report (Real handler replaces dummy) - MOVED DOWN
 Week 9-10  ████████  Phase 5: Testing & QA (Load testing, 80% coverage)
 Week 10-11 ████████  Phase 0: Infrastructure (VPC, IRSA, CircleCI)
 Week 11-12 ████████  Phase 6: Observability (Datadog, Custom metrics)
@@ -363,6 +363,7 @@ Spring Cloud AWS expects secrets in specific format. Each secret should be a JSO
 - Configure local database with plain text credentials (existing local MySQL)
 - Configure local Redis without SSL (existing local Redis)
 - Use LocalStack for S3 and SQS (endpoint: http://localhost:4566)
+- Configure notification queue name for local: `ev-plus-notifications-local-queue`
 - Mock email service (log to console instead of SES)
 - OAuth2 security disabled or mocked for local development
 - Use localhost for all connections
@@ -371,10 +372,11 @@ Spring Cloud AWS expects secrets in specific format. Each secret should be a JSO
 - Secrets Manager enabled (inherits from base config)
 - Database and Redis credentials loaded automatically from AWS Secrets Manager
 - Configure AWS service endpoints: SQS queue name, S3 bucket name
+- Configure notification queue name: `${NOTIFICATION_QUEUE_NAME}` (will be configured per environment)
 - Enable SSL for Redis
 
 **application-stage.yml** & **application-prod.yml**:
-Similar structure to dev, with environment-specific AWS resource names.
+Similar structure to dev, with environment-specific AWS resource names (including notification queue names).
 
 **Key Principle**: No custom configuration classes needed. Spring Cloud AWS and Spring Boot auto-configuration handle everything.
 
@@ -695,18 +697,19 @@ Create initialization script `localstack-init.sh`:
 # Create S3 bucket
 awslocal s3 mb s3://ev-plus-reports-local
 
-# Create SQS queue
+# Create SQS queues
 awslocal sqs create-queue --queue-name ev-plus-reporting-local-queue
+awslocal sqs create-queue --queue-name ev-plus-notifications-local-queue
 
 # Verify resources
 awslocal s3 ls
 awslocal sqs list-queues
 ```
 
-**Mock Email Service**:
-- Create `@Profile("local")` EmailService implementation
-- Log email details to console instead of sending via SES
-- Log: recipient, subject, presigned URL
+**Mock Notification Service**:
+- Create `@Profile("local")` NotificationQueueService implementation
+- Log notification details to console instead of inserting to database/sending SQS messages
+- Log: recipient, report name, download URL, notification event details
 
 **Benefits**:
 - ✅ No AWS costs for local development
@@ -749,8 +752,8 @@ Create `README.md` with:
 - [ ] Error handling framework with standardized responses
 - [ ] Health checks passing (database, Redis, both clusters)
 - [ ] JSON structured logging with correlation IDs
-- [ ] **LocalStack setup for local development (S3, SQS, SES)**
-- [ ] **Mock email service for local profile**
+- [ ] **LocalStack setup for local development (S3, SQS for reporting and notifications)**
+- [ ] **Mock notification service for local profile**
 - [ ] Application runs locally: `mvn spring-boot:run -Dspring.profiles.active=local`
 - [ ] Local MySQL and Redis connections working
 - [ ] API base path: `/ev-pd-report/v1/`
@@ -805,6 +808,16 @@ Configuration for sync vs async threshold determination.
 Insert default thresholds for: USER_ACTIVITY (5000 records, 10s)
 **Rationale**: Apache POI can generate ~5K rows in 3-5 seconds. Keeping sync reports under 10 seconds ensures good UX. Future report types can be added with appropriate thresholds.
 
+**Existing Table Access** (for notification integration):
+
+**notification_events Table** (Write-Only):
+- Insert records when async report completes
+- Columns: district_id, event ('REPORT_READY_FOR_DOWNLOAD'), date, user_id, object_str (report_id), message (JSON with presigned URL, report name, expiration)
+
+**notification_queue Table** (Write-Only):
+- Insert records to trigger existing notification processor
+- Columns: district_id, level ('IMMEDIATELY'), notification_event_id, sqs_queued (1 for immediate delivery)
+
 **JPA Entities**:
 
 **ReportJob Entity**:
@@ -821,6 +834,16 @@ Insert default thresholds for: USER_ACTIVITY (5000 records, 10s)
 - Primary key: reportType (String or enum)
 - Simple entity with max_records, max_duration_seconds, description, updated_at
 
+**NotificationEvent Entity** (for notification integration):
+- Map to `notification_events` table
+- Fields: id (auto-generated), districtId, event, date, userId, objectStr, message
+- Write-only entity (no read operations needed)
+
+**NotificationQueue Entity** (for notification integration):
+- Map to `notification_queue` table
+- Fields: id (auto-generated), districtId, level, notificationEventId, sqsQueued
+- Write-only entity (no read operations needed)
+
 **Spring Data Repositories**:
 
 **ReportJobRepository**:
@@ -832,6 +855,14 @@ Insert default thresholds for: USER_ACTIVITY (5000 records, 10s)
 **ThresholdConfigRepository**:
 - Extend `JpaRepository<ThresholdConfig, ReportType>`
 - No custom methods needed (use findById for lookups)
+
+**NotificationEventRepository** (for notification integration):
+- Extend `JpaRepository<NotificationEvent, Long>`
+- No custom methods needed (insert only)
+
+**NotificationQueueRepository** (for notification integration):
+- Extend `JpaRepository<NotificationQueue, Long>`
+- No custom methods needed (insert only)
 
 **Success Criteria**:
 - [ ] SQL patch created and reviewed by DBA
@@ -1015,12 +1046,107 @@ Base path: `/reports` (full path: `/vector-eval/v1/eval-pd-report/reports`)
 
 ---
 
-## Phase 3: User Activity Report Implementation
+## Phase 4: Asynchronous Processing
 
-**Duration**: 2 weeks (Week 5-6)
-**Owner**: Developer 3 (Reporting Lead)
+**Duration**: 2 weeks (Week 5-6) **← MOVED UP**
+**Owner**: Developer 2 (Async Specialist)
 
-### Task 3.1: UserActivityReportHandler
+**IMPORTANT CHANGE**: This phase has been moved BEFORE Phase 3 to enable independent testing of the async infrastructure using dummy data. This de-risks the critical async pipeline and allows parallel development.
+
+**Testing Strategy**: Phase 4 will use DummyReportHandler with test data to validate the complete async workflow (SQS → Process → Excel → S3 → Notification) without depending on the User Activity Report implementation.
+
+### Task 4.0: Dummy Data Components for Testing
+
+**Effort**: 1 day
+**Week**: 5
+**Status**: 📋 Not Started
+**Assignee**: Developer 2
+**Started**: -
+**Completed**: -
+
+**Purpose**: Create minimal test components to enable independent async pipeline testing without User Activity Report dependencies.
+
+**DummyReportCriteria DTO**:
+```java
+public class DummyReportCriteria extends ReportCriteria {
+    private String testParameter;
+    private int recordCount = 10000; // Configurable for testing
+
+    @Override
+    public ReportType getReportType() {
+        return ReportType.DUMMY_TEST;
+    }
+}
+```
+
+**DummyReportData DTO**:
+```java
+public class DummyReportData extends ReportData {
+    private List<DummyRecord> records;
+}
+
+public class DummyRecord {
+    private String field1;
+    private String field2;
+    private String field3;
+    private LocalDateTime timestamp;
+}
+```
+
+**DummyReportHandler Implementation**:
+- Implement ReportHandler interface
+- getReportType() returns ReportType.DUMMY_TEST
+- validateCriteria() performs simple validation
+- exceedsAsyncThreshold() returns true to always test async flow
+- generateReport() generates configurable number of test records (default 10,000)
+- getCriteriaClass() returns DummyReportCriteria.class
+- Auto-registers with HandlerRegistry on startup
+
+**Test Data Generation**:
+```java
+@Override
+public ReportData generateReport(ReportCriteria criteria) {
+    DummyReportCriteria dummyCriteria = (DummyReportCriteria) criteria;
+
+    // Generate realistic test data
+    List<DummyRecord> records = IntStream.range(0, dummyCriteria.getRecordCount())
+        .mapToObj(i -> new DummyRecord(
+            "Field1-" + i,
+            "Field2-" + i,
+            "Field3-" + i,
+            LocalDateTime.now().minusHours(i)
+        ))
+        .collect(Collectors.toList());
+
+    DummyReportData data = new DummyReportData();
+    data.setRecords(records);
+    data.setTotalRecords(records.size());
+    data.setGeneratedAt(LocalDateTime.now());
+    return data;
+}
+```
+
+**Success Criteria**:
+- [ ] DummyReportCriteria DTO created
+- [ ] DummyReportData and DummyRecord DTOs created
+- [ ] DummyReportHandler implements all ReportHandler methods
+- [ ] Handler generates configurable number of test records
+- [ ] Handler auto-registers with HandlerRegistry
+- [ ] Unit tests verify handler behavior
+- [ ] Integration test confirms handler can be called via REST API
+
+**Benefits**:
+- ✅ Tests async infrastructure independently
+- ✅ Validates full workflow: SQS → Process → Excel → S3 → Notification
+- ✅ No dependency on User Activity Report
+- ✅ Can test with various data volumes (100, 1K, 10K, 100K records)
+- ✅ Enables parallel development
+
+**Note**: This handler will remain in codebase for testing purposes even after User Activity Report is implemented.
+
+---
+
+### Task 4.1: SQS Listener Implementation
 
 **Effort**: 3 days
 **Week**: 5-6
@@ -1175,15 +1301,248 @@ Integration test using Testcontainers for database
 
 ---
 
-## Phase 4: Asynchronous Processing
+## Phase 3: User Activity Report Implementation
 
-**Duration**: 2 weeks (Week 7-8)
-**Owner**: Developer 2 (Async Specialist)
+**Duration**: 2 weeks (Week 7-8) **← MOVED DOWN**
+**Owner**: Developer 3 (Reporting Lead)
+
+**IMPORTANT CHANGE**: This phase has been moved AFTER Phase 4 to allow the async infrastructure to be tested independently first. This phase will implement the real User Activity Report handler and replace the DummyReportHandler used for testing in Phase 4.
+
+### Task 3.1: UserActivityReportHandler
+
+**Effort**: 3 days
+**Week**: 7-8
+**Status**: 📋 Not Started
+**Assignee**: Developer 3
+**Started**: -
+**Completed**: -
+
+**UserActivityCriteria**:
+Extends ReportCriteria, specific to USER_ACTIVITY report type
+
+**Fields**:
+- startDate: LocalDate (required, @NotNull) - Report start date
+- endDate: LocalDate (required, @NotNull) - Report end date
+- userIds: List<Integer> (optional) - Filter by specific users
+- activityTypes: List<String> (optional) - Filter by activity type (e.g., LOGIN, COURSE_VIEW)
+
+**Override**: getReportType() returns ReportType.USER_ACTIVITY
+
+**UserActivityReportData**:
+Extends ReportData, contains the actual report results
+
+**Structure**:
+- activities: List<UserActivityRecord> - The report rows
+
+**UserActivityRecord** (inner class):
+- userId: int
+- userName: String
+- activityType: String
+- activityDate: LocalDateTime (format: ISO 8601)
+- durationSeconds: int
+- districtName: String
+
+**UserActivityReportHandler**:
+Implements ReportHandler for USER_ACTIVITY report type
+
+**Implementation Details**:
+
+**getReportType()**:
+- Return ReportType.USER_ACTIVITY
+
+**validateCriteria()**:
+Validation rules:
+- startDate and endDate are required (not null)
+- startDate must be before endDate
+- Date range cannot exceed 1 year (365 days)
+- Collect all errors and throw ValidationException with list
+
+**exceedsAsyncThreshold()**:
+Estimation algorithm:
+- Calculate days between startDate and endDate
+- Determine user count (from userIds list, or assume 100 if not filtered)
+- Estimate records: days × users × 20 (conservative: 20 activities per user per day)
+- Fetch threshold config from ThresholdService (default: 5000 records)
+- Return true if estimated records > threshold max_records
+
+**Example Calculation**:
+- 7 days × 100 users × 20 activities = 14,000 records → **ASYNC**
+- 7 days × 10 users × 20 activities = 1,400 records → **SYNC**
+- 1 day × 100 users × 20 activities = 2,000 records → **SYNC**
+
+**generateReport()**:
+Report generation flow:
+1. Cast criteria to UserActivityCriteria
+2. Log report parameters (dates, user count)
+3. Call repository.findActivities() with all filter params
+4. Transform UserActivityProjection list to UserActivityRecord list using Stream API
+5. Create UserActivityReportData, set activities list and totalRecords
+6. Log completion with record count
+7. Return report data
+
+**getCriteriaClass()**:
+- Return UserActivityCriteria.class for deserialization
+
+---
+
+### Task 3.2: Database Query Optimization
+
+**Effort**: 2 days
+**Week**: 7
+
+**UserActivityRepository**:
+Extends JpaRepository<UserActivity, Long>
+
+**Custom Query Method: findActivities()**:
+- Use @Query annotation with nativeQuery=true
+- Join 3 tables: user_activity, users, districts
+- Select: userId, userName (concatenated), activityType, activityDate, durationSeconds, districtName
+- WHERE clause with dynamic filters:
+  - activity_date BETWEEN startDate AND endDate (required)
+  - user_id IN userIds list (optional, skip if NULL)
+  - activity_type IN activityTypes list (optional, skip if NULL)
+  - district_id IN districtIds list (optional, skip if NULL)
+- ORDER BY: activity_date DESC, user_id ASC
+- LIMIT 50000 (safety limit to prevent runaway queries)
+- Return: List<UserActivityProjection>
+
+**UserActivityProjection Interface**:
+Projection for efficient data retrieval (only needed fields, no full entities)
+- Getter methods: getUserId(), getUserName(), getActivityType(), getActivityDate(), getDurationSeconds(), getDistrictName()
+
+**Index Recommendations** (coordinate with DBA):
+- idx_activity_date on user_activity(activity_date) - for date range filtering
+- idx_activity_user_date on user_activity(user_id, activity_date) - for user-specific queries
+- idx_activity_type on user_activity(activity_type) - for activity type filtering
+
+---
+
+### Task 3.3: Update ExcelReportGenerator for User Activity
+
+**Effort**: 1 day
+**Week**: 8
+**Status**: 📋 Not Started
+**Assignee**: Developer 3
+**Started**: -
+**Completed**: -
+
+**Purpose**: Add UserActivityReportData support to ExcelReportGenerator (which currently only supports DummyReportData from Phase 4)
+
+**Update generateExcel() Method**:
+```java
+public byte[] generateExcel(ReportData reportData) {
+    if (reportData instanceof DummyReportData) {
+        return generateDummyExcel((DummyReportData) reportData);
+    } else if (reportData instanceof UserActivityReportData) {
+        return generateUserActivityExcel((UserActivityReportData) reportData);
+    }
+    throw new UnsupportedOperationException("Report type not yet implemented");
+}
+```
+
+**Add generateUserActivityExcel() Method**:
+
+**Setup**:
+- Create **SXSSFWorkbook** for streaming (keeps only 100 rows in memory)
+- Create sheet named "User Activity Report"
+- **Memory Optimization**: SXSSF writes rows to temp files, preventing OutOfMemoryError
+
+**Header Styling**:
+- Create CellStyle with bold font
+- Header columns: "User ID", "User Name", "Activity Type", "Activity Date", "Duration (seconds)", "District"
+- Apply header style to all header cells
+
+**Data Population**:
+- Start from row 1 (row 0 is header)
+- Iterate through reportData.getActivities()
+- For each record, create row and populate cells:
+  - Column 0: userId (numeric)
+  - Column 1: userName (string)
+  - Column 2: activityType (string)
+  - Column 3: activityDate (formatted as "yyyy-MM-dd HH:mm:ss")
+  - Column 4: durationSeconds (numeric)
+  - Column 5: districtName (string)
+
+**Finalization**:
+- Auto-size all columns for readability
+- Write workbook to ByteArrayOutputStream
+- Log row count
+- Return byte array
+
+**Error Handling**:
+- Catch IOException, throw ReportGenerationException
+
+**Success Criteria**:
+- [ ] generateExcel() routes to correct generator based on ReportData type
+- [ ] generateUserActivityExcel() creates properly formatted Excel file
+- [ ] SXSSF streaming works for large reports (tested with 10,000+ rows)
+- [ ] Headers styled correctly (bold font)
+- [ ] Data columns formatted correctly (numeric, string, datetime)
+- [ ] Columns auto-sized for readability
+- [ ] Integration test verifies Excel file can be opened and read
+- [ ] Both DummyReportData and UserActivityReportData support maintained
+
+---
+
+### Task 3.4: Integration Testing
+
+**Effort**: 2 days
+**Week**: 8
+**Status**: 📋 Not Started
+**Assignee**: Developer 3
+**Started**: -
+**Completed**: -
+
+**UserActivityReportIntegrationTest**:
+Integration test using Testcontainers for database
+
+**Test Setup**:
+- Use @SpringBootTest, @Testcontainers, @ActiveProfiles("test")
+- MySQL container: version 8.0, database name "testdb"
+- Inject: ReportGeneratorService, UserActivityRepository
+- @BeforeEach: Insert test data (users, districts, activities)
+
+**Test Case 1: testSyncReportGeneration()**:
+- Given: Small date range (7 days) that should trigger sync processing
+- Create UserActivityCriteria with recent dates
+- Create ReportRequest with USER_ACTIVITY type
+- Create test User
+- When: Call reportGeneratorService.generateReport()
+- Then: Assert status="COMPLETED", data not null, totalRecords > 0
+
+**Test Case 2: testAsyncReportQueuing()**:
+- Given: Large date range (1 year) that should trigger async processing
+- Create UserActivityCriteria with wide date range
+- Create ReportRequest
+- When: Call reportGeneratorService.generateReport()
+- Then: Assert status="QUEUED", jobId not null, estimatedCompletionTime not null
+
+**Additional Test Cases** (implement as needed):
+- Validation error scenarios (invalid date ranges)
+- Authorization checks (users can only see their data)
+- Empty result sets
+- Filter combinations (userIds, activityTypes)
+
+---
+
+### Phase 3 Exit Criteria
+
+✅ All tasks completed:
+- [ ] UserActivityReportHandler implemented
+- [ ] Criteria and data DTOs created
+- [ ] Database queries optimized
+- [ ] DBA reviewed indexes
+- [ ] ExcelReportGenerator updated to support UserActivityReportData
+- [ ] Both sync and async flows working end-to-end with User Activity Report
+- [ ] Integration tests pass
+- [ ] Unit test coverage ≥90%
+
+---
 
 ### Task 4.1: SQS Listener Implementation
 
 **Effort**: 3 days
-**Week**: 7-8
+**Week**: 5-6
 
 **AsyncReportProcessor**:
 Purpose: Listen to SQS queue and process async report jobs
@@ -1229,7 +1588,7 @@ reportJobRepository.save(job);
 5. **Upload to S3**: Generate filename ("{reportType}_{jobId}.xlsx"), upload to S3
 6. **Generate URL**: Create presigned URL with 7-day expiration
 7. **Update Job**: Set status=COMPLETED, completedDate, s3Url, filename, save to DB
-8. **Send Email**: Notify user with presigned URL download link
+8. **Queue Notification**: Insert record to notification_events table (event: 'REPORT_READY_FOR_DOWNLOAD'), then insert to notification_queue table, and send SQS message to notification queue (existing teachpoint-web processor will send email)
 
 **Error Handling (handleJobFailure method)**:
 - Lookup job by ID
@@ -1249,7 +1608,7 @@ reportJobRepository.save(job);
 ### Task 4.2: S3 Service Implementation
 
 **Effort**: 2 days
-**Week**: 8
+**Week**: 5-6
 
 **S3Service**:
 Purpose: Upload reports to S3, generate presigned URLs, download reports
@@ -1290,18 +1649,46 @@ Purpose: Upload reports to S3, generate presigned URLs, download reports
 ### Task 4.3: Excel Generation Service
 
 **Effort**: 3 days
-**Week**: 8
+**Week**: 5-6
 
 **ExcelReportGenerator**:
 Purpose: Convert ReportData to Excel format using Apache POI
 
 **Main Method: generateExcel(ReportData)**:
 - Use instanceof to route to specific generator method
-- Support UserActivityReportData initially
+- **Phase 4**: Support DummyReportData for testing async pipeline
+- **Phase 3 (later)**: Add UserActivityReportData support
 - Extensible for additional report types
 - Throw UnsupportedOperationException for unknown types
 
-**UserActivityExcel Generation (generateUserActivityExcel)**:
+**DummyReport Excel Generation (generateDummyExcel)** - **NEW FOR PHASE 4**:
+
+**Setup**:
+- Create **SXSSFWorkbook** for streaming (keeps only 100 rows in memory)
+- Create sheet named "Dummy Test Report"
+- **Memory Optimization**: SXSSF writes rows to temp files, preventing OutOfMemoryError
+
+**Header Styling**:
+- Create CellStyle with bold font
+- Header columns: "Field 1", "Field 2", "Field 3", "Timestamp"
+- Apply header style to all header cells
+
+**Data Population**:
+- Start from row 1 (row 0 is header)
+- Iterate through reportData.getRecords()
+- For each record, create row and populate cells:
+  - Column 0: field1 (string)
+  - Column 1: field2 (string)
+  - Column 2: field3 (string)
+  - Column 3: timestamp (formatted as "yyyy-MM-dd HH:mm:ss")
+
+**Finalization**:
+- Auto-size all columns for readability
+- Write workbook to ByteArrayOutputStream
+- Log row count
+- Return byte array
+
+**UserActivityExcel Generation (generateUserActivityExcel)** - **TO BE ADDED IN PHASE 3**:
 
 **Setup**:
 - Create **SXSSFWorkbook** for streaming large files (keeps only 100 rows in memory at a time)
@@ -1336,90 +1723,121 @@ Purpose: Convert ReportData to Excel format using Apache POI
 
 ---
 
-### Task 4.4: Email Notification Service
+### Task 4.4: Notification Queue Integration Service
 
 **Effort**: 2 days
-**Week**: 8
+**Week**: 5-6
 
-**EmailService**:
-Purpose: Notify users when async reports are ready for download using AWS SES
+**NotificationQueueService**:
+Purpose: Integrate with existing teachpoint-web notification infrastructure to deliver report completion notifications
 
 **Dependencies**:
-- SesClient from AWS SDK 2.x (production) or MockEmailService (local development)
-- Configuration property: `aws.email.from-address` (sender email, must be verified in SES)
-- For local development: Use profile-based bean to log emails to console instead of sending
+- NotificationEventRepository (JPA repository for notification_events table)
+- NotificationQueueRepository (JPA repository for notification_queue table)
+- SqsTemplate or AWS SQS SDK 2.x client
+- Configuration property: `notification.queue.name` (configured per environment)
 
-**Main Method: sendReportReadyEmail(User, String downloadUrl, String reportName)**:
+**Main Method: queueReportNotification(ReportJob, User, String downloadUrl)**:
 
 **Parameters**:
-- User object containing email, firstName
+- ReportJob: Completed report job with metadata
+- User: User object containing userId, email, firstName
 - downloadUrl: Presigned S3 URL for report download (7-day expiration)
-- reportName: Human-readable report type (e.g., "User Activity Report")
 
-**IMPORTANT**: Email contains presigned URL only - NO ATTACHMENTS. This ensures:
-- No email size limits (email is ~5-10KB)
-- No SES attachment restrictions
-- Better deliverability and spam filtering
-- Users download directly from S3
+**IMPORTANT**: This service does NOT send emails directly. It integrates with existing teachpoint-web notification infrastructure by:
+- Inserting notification event to database
+- Inserting notification queue record
+- Sending SQS message to existing notification processor queue
+- Existing teachpoint-web email processor handles actual email delivery
 
 **Implementation Flow**:
-1. Build email subject: "Your {reportName} Report is Ready"
-2. Build HTML email body using private helper method (presigned URL link only)
-3. Log email send attempt
-4. Use SES SendEmailRequest builder to construct request:
-   - Destination: User's email address
-   - Message subject: Dynamic subject with report name
-   - Message body: HTML content with download link
-   - Source: Configured from-address
-5. Send email via sesClient.sendEmail()
-6. Log successful send with messageId from response
+1. **Create Notification Event**:
+   - Build NotificationEvent entity:
+     - districtId: From report job
+     - event: "REPORT_READY_FOR_DOWNLOAD" (constant for this notification type)
+     - date: Current timestamp
+     - userId: From user object
+     - objectStr: report_id (jobId UUID)
+     - message: JSON string containing:
+       ```json
+       {
+         "reportName": "User Activity Report",
+         "downloadUrl": "https://s3.presigned.url...",
+         "expirationDate": "2025-02-04"
+       }
+       ```
+   - Save to notification_events table via repository
+   - Retrieve generated notification_event_id
+
+2. **Create Notification Queue Record**:
+   - Build NotificationQueue entity:
+     - districtId: From report job
+     - level: "IMMEDIATELY" (for urgent report notifications)
+     - notificationEventId: From step 1
+     - sqsQueued: 1 (indicates message sent to SQS)
+   - Save to notification_queue table via repository
+
+3. **Send SQS Message**:
+   - Build SQS message body (JSON):
+     ```json
+     {
+       "notificationQueueId": 12345,
+       "notificationEventId": 67890,
+       "districtId": 123,
+       "level": "IMMEDIATELY"
+     }
+     ```
+   - Send message to configured notification queue using SqsTemplate or SQS SDK
+   - Use configured queue name from `notification.queue.name` property
+   - Log successful SQS message send with messageId
+
+4. **Existing Processor Handles Email Delivery**:
+   - Teachpoint-web notification processor polls notification queue
+   - Retrieves notification event and queue records from database
+   - Builds email from template using message JSON
+   - Sends email via AWS SES
+   - Deletes processed notification queue record
 
 **Local Development**:
-- Use `@Profile("local")` to create MockEmailService that logs to console
-- Log email details: recipient, subject, download URL
-- No actual SES call in local environment
+- Use `@Profile("local")` to create MockNotificationQueueService
+- Log notification details to console instead of inserting to database
+- Log: recipient, report name, download URL, notification event data
+- No actual database inserts or SQS messages in local environment
 
 **Error Handling (CRITICAL)**:
-- Catch all exceptions during email send
-- Log error with user email and exception details
-- **DO NOT throw exception** - email failure should not fail the entire job
-- Job status should remain COMPLETED even if email fails
+- Catch all exceptions during notification queuing
+- Log error with user email, report job ID, and exception details
+- **DO NOT throw exception** - notification failure should not fail the entire job
+- Job status should remain COMPLETED even if notification queueing fails
 - User can still download via /reports/download/{jobId} endpoint
+- Defensive programming: verify notification event saved before creating queue record
 
-**HTML Email Template Requirements (buildEmailBody method)**:
+**Configuration Properties** (application.yml):
+```yaml
+notification:
+  queue:
+    name: ${NOTIFICATION_QUEUE_NAME}  # Configured per environment
+    event-type: REPORT_READY_FOR_DOWNLOAD
+    level: IMMEDIATELY
+```
 
-**Structure**:
-- HTML5 DOCTYPE
-- Inline CSS styling (email clients don't support external stylesheets)
-- Responsive container (max-width: 600px, centered)
+**Environment-Specific Queue Names**:
+- **Local**: `ev-plus-notifications-local-queue` (LocalStack)
+- **Dev/Stage/Prod**: Actual queue names to be configured (placeholder: `${NOTIFICATION_QUEUE_NAME}`)
 
-**Content**:
-- Heading: "Your Report is Ready"
-- Personalized greeting: "Hi {firstName},"
-- Message: "Your {reportName} report has been generated successfully and is ready for download."
-- **Important**: Include clear messaging that this is a download link (not an attachment)
-- Call-to-action button: "Download Report" linking to downloadUrl (presigned S3 URL)
-  - Button styling: Blue background (#0066cc), white text, padding, rounded corners
-  - Button text: "Download Report" or "Download Excel File"
-- Expiration notice: "This download link will expire in 7 days."
-- Alternative download option: "If the button doesn't work, use the link below:" + plain URL
-- Footer: Automated message disclaimer with support contact notice
-
-**Text Substitution**:
-- Use String.format() with placeholders for: firstName, reportName, downloadUrl
-- Ensure proper HTML escaping if needed
-
-**Configuration Required**:
-- AWS SES sender email must be verified (production) or sandbox-approved
-- From-address should be no-reply or branded address
-- Consider adding Reply-To header if users should respond
+**Benefits of This Approach**:
+- ✅ Reuses proven notification delivery mechanism (no duplicate email logic)
+- ✅ Maintains consistent user experience (same email format/branding)
+- ✅ No SES configuration needed in microservice (handled by existing processor)
+- ✅ Email template managed centrally in teachpoint-web
+- ✅ Notification delivery monitoring already in place
 
 ---
 
 ### Task 4.5: Download Endpoint Implementation
 
 **Effort**: 1 day
-**Week**: 8
+**Week**: 5-6
 
 **Add to ReportController**:
 
@@ -1476,13 +1894,16 @@ Purpose: Notify users when async reports are ready for download using AWS SES
 ### Phase 4 Exit Criteria
 
 ✅ All tasks completed:
+- [ ] DummyReportHandler implemented and registered
 - [ ] SQS listener processing messages
 - [ ] S3 upload and presigned URLs working
-- [ ] Excel generation for User Activity Report
-- [ ] Email notifications delivered
+- [ ] Excel generation for DummyReport (test data)
+- [ ] Notification queue integration working (inserts to notification_events and notification_queue tables)
+- [ ] SQS messages sent to notification processor queue
+- [ ] Existing teachpoint-web notification processor delivers emails with download links
 - [ ] Download endpoint functional
-- [ ] Async flow end-to-end tested
-- [ ] Integration tests pass
+- [ ] Complete async flow tested end-to-end with dummy data (SQS → Process → Excel → S3 → Notification → Email)
+- [ ] Integration tests pass with LocalStack (SQS, S3, notification queue)
 
 ---
 
