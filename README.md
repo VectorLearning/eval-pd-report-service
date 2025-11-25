@@ -453,7 +453,7 @@ eval-pd-report-service/
 1. **Start LocalStack**: `docker-compose -f docker-compose-localstack.yml up -d`
 2. **Start MySQL and Redis**: Ensure both are running locally
 3. **Run Application**: `mvn spring-boot:run -Dspring.profiles.active=local`
-4. **Access Swagger UI**: http://localhost:8080/vector-eval/v1/eval-pd-report/swagger-ui.html
+4. **Access Swagger UI**: http://localhost:8080/ev-pd-report/v1/swagger-ui.html
 5. **Make Changes**: Edit code, tests auto-reload with Spring DevTools
 6. **Run Tests**: `mvn test`
 7. **Check Coverage**: `mvn jacoco:report`

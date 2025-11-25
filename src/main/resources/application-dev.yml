@@ -2,31 +2,43 @@
 
 spring:
   # AWS Secrets Manager Configuration
-  # Secrets will be loaded from: /secret/eval-pd-report-service/dev
+  # Only passwords are loaded from Secrets Manager: /secret/eval-pd-report-service/dev
+  # Required secrets:
+  #   - WRITE_DB_PASSWORD: Password for write database
+  #   - READ_DB_PASSWORD: Password for read replica database
+  #   - REDIS_PASSWORD: Password for Redis/ValKey
   cloud:
     aws:
       secretsmanager:
         enabled: true
-        # Secret properties will be auto-loaded:
-        # - spring.datasource.url
-        # - spring.datasource.username
-        # - spring.datasource.password
-        # - spring.data.redis.host
-        # - spring.data.redis.port
-        # - spring.data.redis.password
 
-  # Database Configuration (values loaded from Secrets Manager)
+  # Write Database Configuration (Primary/Master)
   datasource:
+    url: jdbc:mysql://dev-db-primary.evplus.com:3306/teachpoint?useSSL=true&requireSSL=true&serverTimezone=UTC
+    username: tpuser_write
+    password: ${WRITE_DB_PASSWORD}  # Loaded from Secrets Manager
+    driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
+      pool-name: WritePool-Dev
       maximum-pool-size: 20
       minimum-idle: 5
       connection-timeout: 30000
       idle-timeout: 600000
       max-lifetime: 1800000
 
-  # Redis Configuration (values loaded from Secrets Manager)
+    # Read Database Configuration (Replica)
+    read:
+      url: jdbc:mysql://dev-db-replica.evplus.com:3306/teachpoint?useSSL=true&requireSSL=true&serverTimezone=UTC
+      username: tpuser_read
+      password: ${READ_DB_PASSWORD}  # Loaded from Secrets Manager
+      driver-class-name: com.mysql.cj.jdbc.Driver
+
+  # Redis Configuration
   data:
     redis:
+      host: dev-redis.evplus.com
+      port: 6379
+      password: ${REDIS_PASSWORD}  # Loaded from Secrets Manager
       timeout: 2000
       ssl: true  # Enable SSL for AWS ElastiCache
       lettuce:

@@ -2,24 +2,43 @@
 
 spring:
   # AWS Secrets Manager Configuration
-  # Secrets will be loaded from: /secret/eval-pd-report-service/prod
+  # Only passwords are loaded from Secrets Manager: /secret/eval-pd-report-service/prod
+  # Required secrets:
+  #   - WRITE_DB_PASSWORD: Password for write database
+  #   - READ_DB_PASSWORD: Password for read replica database
+  #   - REDIS_PASSWORD: Password for Redis/ValKey
   cloud:
     aws:
       secretsmanager:
         enabled: true
 
-  # Database Configuration (values loaded from Secrets Manager)
+  # Write Database Configuration (Primary/Master)
   datasource:
+    url: jdbc:mysql://prod-db-primary.evplus.com:3306/teachpoint?useSSL=true&requireSSL=true&serverTimezone=UTC
+    username: tpuser_write
+    password: ${WRITE_DB_PASSWORD}  # Loaded from Secrets Manager
+    driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
+      pool-name: WritePool-Prod
       maximum-pool-size: 50
       minimum-idle: 20
       connection-timeout: 30000
       idle-timeout: 600000
       max-lifetime: 1800000
 
-  # Redis Configuration (values loaded from Secrets Manager)
+    # Read Database Configuration (Replica)
+    read:
+      url: jdbc:mysql://prod-db-replica.evplus.com:3306/teachpoint?useSSL=true&requireSSL=true&serverTimezone=UTC
+      username: tpuser_read
+      password: ${READ_DB_PASSWORD}  # Loaded from Secrets Manager
+      driver-class-name: com.mysql.cj.jdbc.Driver
+
+  # Redis Configuration
   data:
     redis:
+      host: prod-redis.evplus.com
+      port: 6379
+      password: ${REDIS_PASSWORD}  # Loaded from Secrets Manager
       timeout: 2000
       ssl: true
       lettuce:
