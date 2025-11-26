@@ -9,6 +9,8 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate  # Never auto-create schema in production
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
     show-sql: false
     properties:
       hibernate:
