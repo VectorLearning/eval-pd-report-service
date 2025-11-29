@@ -118,6 +118,7 @@
         </dependency>
 
         <!-- AWS SDK 2.x for S3 and SES -->
+        <!-- Note: S3Presigner is included in the s3 artifact, no separate dependency needed -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>s3</artifactId>

@@ -203,34 +203,168 @@ Schema patch location: `src/main/resources/db/patch20260128_tp_17281_reportjobs.
 
 ## LocalStack Usage
 
-LocalStack provides local AWS service emulation for development and testing.
+LocalStack provides local AWS service emulation for development and testing without incurring AWS costs.
+
+**Services Available**: S3, SQS, SES
 
 ### Start LocalStack
 
 ```bash
+# Start LocalStack container
 docker-compose -f docker-compose-localstack.yml up -d
+
+# Verify LocalStack is running and healthy
+docker ps | grep localstack
+curl http://localhost:4566/_localstack/health
 ```
 
-### Verify Resources
+**What Gets Created Automatically**:
+- ✅ S3 bucket: `ev-plus-reports-local`
+- ✅ SQS queue: `ev-plus-reporting-local-queue`
+- ✅ SES endpoint: `http://localhost:4566` (mock email service)
+
+### Working with LocalStack S3
+
+#### List S3 Buckets and Files
 
 ```bash
-# List S3 buckets
-awslocal s3 ls
+# List all buckets
+AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test \
+  aws --endpoint-url=http://localhost:4566 s3 ls
 
-# List SQS queues
-awslocal sqs list-queues
+# List all report files
+AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test \
+  aws --endpoint-url=http://localhost:4566 s3 ls \
+  s3://ev-plus-reports-local/reports/ --recursive --human-readable
+```
 
-# Check health
-curl http://localhost:4566/_localstack/health
+#### Download Excel Reports from S3
+
+```bash
+# Download a specific report
+AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test \
+  aws --endpoint-url=http://localhost:4566 s3 cp \
+  s3://ev-plus-reports-local/reports/123/job-001/REPORT.xlsx \
+  ./downloaded-report.xlsx
+
+# Open the Excel file
+open ./downloaded-report.xlsx  # macOS
+```
+
+#### Upload Test Files to S3
+
+```bash
+# Upload a file
+AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test \
+  aws --endpoint-url=http://localhost:4566 s3 cp \
+  myfile.xlsx s3://ev-plus-reports-local/reports/123/test-job/myfile.xlsx
+```
+
+### Working with LocalStack SQS
+
+#### View Queue Messages
+
+```bash
+# Get queue URL
+AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=us-east-1 \
+  aws --endpoint-url=http://localhost:4566 sqs list-queues
+
+# Check message count
+AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=us-east-1 \
+  aws --endpoint-url=http://localhost:4566 sqs get-queue-attributes \
+  --queue-url "http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/ev-plus-reporting-local-queue" \
+  --attribute-names ApproximateNumberOfMessages
+
+# Receive messages (peek without deleting)
+AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=us-east-1 \
+  aws --endpoint-url=http://localhost:4566 sqs receive-message \
+  --queue-url "http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/ev-plus-reporting-local-queue" \
+  --max-number-of-messages 10
+```
+
+#### Send Test Messages to Queue
+
+```bash
+# Send a test report job message
+AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=us-east-1 \
+  aws --endpoint-url=http://localhost:4566 sqs send-message \
+  --queue-url "http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/ev-plus-reporting-local-queue" \
+  --message-body '{"reportType":"USER_ACTIVITY","districtId":123,"jobId":"test-001"}'
+```
+
+### Integration Tests with LocalStack
+
+Integration tests automatically use the running LocalStack instance:
+
+```bash
+# Ensure LocalStack is running
+docker ps | grep localstack
+
+# Run S3 integration tests
+mvn test -Dtest=S3ServiceIntegrationTest
+
+# Run Excel generation integration tests
+mvn test -Dtest=ExcelGeneratorIntegrationTest
+
+# Run all integration tests
+mvn test -Dtest=*IntegrationTest
+```
+
+**Note**: Integration tests require LocalStack to be running before execution.
+
+### Useful Aliases (Optional)
+
+Add to your `~/.bashrc` or `~/.zshrc`:
+
+```bash
+# Simplified LocalStack S3 access
+alias s3local='AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test aws --endpoint-url=http://localhost:4566 s3'
+
+# Simplified LocalStack SQS access
+alias sqslocal='AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=us-east-1 aws --endpoint-url=http://localhost:4566 sqs'
+```
+
+Then use:
+```bash
+s3local ls s3://ev-plus-reports-local/reports/ --recursive
+sqslocal list-queues
 ```
 
 ### Stop LocalStack
 
 ```bash
+# Stop and remove containers
 docker-compose -f docker-compose-localstack.yml down
+
+# Stop without removing (keeps data)
+docker-compose -f docker-compose-localstack.yml stop
 ```
 
-See `.notes/localstack-setup.md` for detailed LocalStack documentation.
+### Troubleshooting LocalStack
+
+**LocalStack won't start**:
+```bash
+# Check Docker is running
+docker ps
+
+# View LocalStack logs
+docker logs evplus-localstack
+
+# Restart LocalStack
+docker-compose -f docker-compose-localstack.yml restart
+```
+
+**Cannot access S3/SQS**:
+- Ensure LocalStack is running: `docker ps | grep localstack`
+- Verify endpoint: `curl http://localhost:4566/_localstack/health`
+- Check port 4566 is not in use: `lsof -i :4566`
+
+**Integration tests fail with Docker error**:
+- Stop other Docker environments (like Rancher Desktop)
+- Keep only Docker Desktop running
+- Ensure `/var/run/docker.sock` is accessible
+
+See `.notes/localstack-setup.md` for additional LocalStack documentation.
 
 ## Building and Testing
 
