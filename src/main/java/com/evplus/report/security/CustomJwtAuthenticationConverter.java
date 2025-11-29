@@ -5,7 +5,6 @@ import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -34,7 +33,8 @@ public class CustomJwtAuthenticationConverter implements Converter<Jwt, Abstract
             .authorities(authorities)
             .build();
 
-        return new JwtAuthenticationToken(jwt, authorities, principal.getUsername());
+        // Return custom authentication token with UserPrincipal as the principal
+        return new UserPrincipalAuthenticationToken(principal, jwt, authorities);
     }
 
     /**

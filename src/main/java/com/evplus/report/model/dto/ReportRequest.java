@@ -7,7 +7,7 @@ import lombok.Data;
 
 /**
  * DTO for report generation requests.
- * Contains the report type and polymorphic criteria.
+ * Contains the report type, user identification, and polymorphic criteria.
  */
 @Data
 @Schema(description = "Request to generate a report")
@@ -17,8 +17,22 @@ public class ReportRequest {
      * Type of report to generate.
      */
     @NotNull(message = "Report type is required")
-    @Schema(description = "Type of report to generate", example = "USER_ACTIVITY", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "Type of report to generate", example = "DUMMY_TEST", requiredMode = Schema.RequiredMode.REQUIRED)
     private ReportType reportType;
+
+    /**
+     * User ID requesting the report.
+     */
+    @NotNull(message = "User ID is required")
+    @Schema(description = "ID of the user requesting the report", example = "123", requiredMode = Schema.RequiredMode.REQUIRED)
+    private Integer userId;
+
+    /**
+     * District ID for the report scope.
+     */
+    @NotNull(message = "District ID is required")
+    @Schema(description = "ID of the district for report scope", example = "456", requiredMode = Schema.RequiredMode.REQUIRED)
+    private Integer districtId;
 
     /**
      * Report-specific criteria.

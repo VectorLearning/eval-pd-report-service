@@ -1,10 +1,8 @@
 package com.evplus.report.exception;
 
 import com.evplus.report.model.dto.ErrorResponse;
-import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,13 +11,10 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Global Exception Handler.
@@ -247,16 +242,17 @@ public class GlobalExceptionHandler {
         String message,
         WebRequest request
     ) {
-        String path = ((ServletWebRequest) request).getRequest().getRequestURI();
-        String correlationId = MDC.get("correlationId");
+        // Commented out for now - uncomment if needed for debugging/tracing
+        // String path = ((ServletWebRequest) request).getRequest().getRequestURI();
+        // String correlationId = MDC.get("correlationId");
 
         return ErrorResponse.builder()
             .status(status.value())
             .error(error)
             .message(message)
-            .path(path)
-            .correlationId(correlationId)
-            .timestamp(java.time.LocalDateTime.now())
+            // .path(path)
+            // .correlationId(correlationId)
+            // .timestamp(java.time.LocalDateTime.now())
             .build();
     }
 

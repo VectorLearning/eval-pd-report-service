@@ -23,7 +23,7 @@ import lombok.Data;
 @JsonSubTypes({
     // Concrete criteria classes will be registered here as they're created
     // @JsonSubTypes.Type(value = UserActivityCriteria.class, name = "USER_ACTIVITY"),
-    // @JsonSubTypes.Type(value = DummyReportCriteria.class, name = "DUMMY_TEST")
+    @JsonSubTypes.Type(value = DummyReportCriteria.class, name = "DUMMY_TEST")
 })
 public abstract class ReportCriteria {
 

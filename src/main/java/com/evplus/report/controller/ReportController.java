@@ -86,13 +86,16 @@ public class ReportController {
         @Valid @RequestBody ReportRequest request,
         @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
-        log.info("Report generation request: type={}, userId={}",
-            request.getReportType(), userPrincipal.getUserId());
+        // UserPrincipal is kept for JWT validation only (can be null in local profile)
+        // TODO: Add authorization check - validate userId/districtId from request against UserPrincipal claims
+
+        log.info("Report generation request: type={}, userId={}, districtId={}",
+            request.getReportType(), request.getUserId(), request.getDistrictId());
 
         ReportResponse response = reportGeneratorService.generateReport(
             request,
-            userPrincipal.getUserId(),
-            userPrincipal.getUserId() // Using userId as districtId for now
+            request.getUserId(),
+            request.getDistrictId()
         );
 
         // Return 202 Accepted for async, 200 OK for sync
