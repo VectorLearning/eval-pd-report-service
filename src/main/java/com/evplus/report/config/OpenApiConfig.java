@@ -95,7 +95,9 @@ public class OpenApiConfig {
     }
 
     /**
-     * Local profile OpenAPI - No security scheme for local development.
+     * Local profile OpenAPI - Includes Bearer token security for testing.
+     * Note: While authentication is disabled in local mode, the Bearer token
+     * field is available in Swagger UI for testing against remote environments.
      */
     @Bean
     @Profile("local")
@@ -103,12 +105,16 @@ public class OpenApiConfig {
         return new OpenAPI()
             .info(apiInfo()
                 .description(apiInfo().getDescription() +
-                    "\n\n**LOCAL DEVELOPMENT MODE** - Authentication is disabled.")
+                    "\n\n**LOCAL DEVELOPMENT MODE** - Authentication is disabled, but Bearer token can be provided for testing.")
             )
             .servers(List.of(
                 new Server()
                     .url("http://localhost:8080" + contextPath)
                     .description("Local Development")
-            ));
+            ))
+            .components(new Components()
+                .addSecuritySchemes("bearer-jwt", securityScheme())
+            )
+            .addSecurityItem(new SecurityRequirement().addList("bearer-jwt"));
     }
 }

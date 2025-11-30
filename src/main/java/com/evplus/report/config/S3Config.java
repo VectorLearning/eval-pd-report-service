@@ -58,6 +58,7 @@ public class S3Config {
 
     /**
      * S3Presigner bean for generating presigned URLs.
+     * Configured to use path-style URLs for LocalStack compatibility.
      */
     @Bean
     public S3Presigner s3Presigner() {
@@ -67,7 +68,12 @@ public class S3Config {
 
         // Override endpoint for LocalStack in local environment
         if (s3Endpoint != null && !s3Endpoint.isEmpty()) {
-            builder.endpointOverride(URI.create(s3Endpoint));
+            builder.endpointOverride(URI.create(s3Endpoint))
+                   .serviceConfiguration(
+                       software.amazon.awssdk.services.s3.S3Configuration.builder()
+                           .pathStyleAccessEnabled(true)  // Required for LocalStack presigned URLs
+                           .build()
+                   );
         }
 
         return builder.build();

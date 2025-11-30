@@ -14,6 +14,10 @@ awslocal s3 ls
 echo "Creating SQS queue: ev-plus-reporting-local-queue"
 awslocal sqs create-queue --queue-name ev-plus-reporting-local-queue
 
+# Create SQS queue for notifications
+echo "Creating SQS queue: ev-plus-notifications-local-queue"
+awslocal sqs create-queue --queue-name ev-plus-notifications-local-queue
+
 # List queues to verify
 awslocal sqs list-queues
 

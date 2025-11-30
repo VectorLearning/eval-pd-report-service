@@ -82,3 +82,10 @@ springdoc:
     operationsSorter: method
     tagsSorter: alpha
   show-actuator: false
+
+# Notification Queue Configuration
+notification:
+  queue:
+    name: ${NOTIFICATION_QUEUE_NAME:ev-plus-notifications-queue}
+  event-type: REPORT_READY_FOR_DOWNLOAD
+  level: IMMEDIATELY

@@ -13,10 +13,14 @@ import com.evplus.report.service.handler.HandlerRegistry;
 import com.evplus.report.service.handler.ReportHandler;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.awspring.cloud.sqs.operations.SqsTemplate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -39,6 +43,10 @@ public class ReportGeneratorService {
     private final ThresholdService thresholdService;
     private final ReportJobRepository reportJobRepository;
     private final ObjectMapper objectMapper;
+    private final SqsTemplate sqsTemplate;
+
+    @Value("${aws.sqs.queue-name}")
+    private String queueName;
 
     /**
      * Generate a report based on the request.
@@ -155,12 +163,18 @@ public class ReportGeneratorService {
             reportJobRepository.save(job);
             log.info("Created async report job: jobId={}, type={}", jobId, request.getReportType());
 
-            // TODO: Send SQS message (will be implemented in Phase 4)
-            // For now, just log that we would send a message
-            log.info("TODO: Send SQS message for job: {}", jobId);
+            // Send SQS message AFTER transaction commits to avoid race condition
+            // This ensures the job is visible in the database before the listener picks it up
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    sqsTemplate.send(queueName, jobId);
+                    log.info("Sent SQS message for job: {} to queue: {}", jobId, queueName);
+                }
+            });
 
-            // Estimate completion time (10 seconds from now as placeholder)
-            LocalDateTime estimatedCompletion = LocalDateTime.now().plusSeconds(10);
+            // Estimate completion time (5 minutes from now)
+            LocalDateTime estimatedCompletion = LocalDateTime.now().plusMinutes(5);
 
             // Build response
             return ReportResponse.builder()

@@ -13,6 +13,7 @@ import com.evplus.report.repository.ReportJobRepository;
 import com.evplus.report.service.handler.HandlerRegistry;
 import com.evplus.report.service.handler.ReportHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.awspring.cloud.sqs.operations.SqsTemplate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,9 +21,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
@@ -44,6 +47,9 @@ class ReportGeneratorServiceTest {
     private ObjectMapper objectMapper;
 
     @Mock
+    private SqsTemplate sqsTemplate;
+
+    @Mock
     private ReportHandler mockHandler;
 
     @InjectMocks
@@ -56,6 +62,9 @@ class ReportGeneratorServiceTest {
 
     @BeforeEach
     void setUp() {
+        // Set queue name via reflection
+        ReflectionTestUtils.setField(reportGeneratorService, "queueName", "test-queue");
+
         criteria = new MockReportCriteria();
         request = new ReportRequest();
         request.setReportType(ReportType.USER_ACTIVITY);
@@ -129,6 +138,9 @@ class ReportGeneratorServiceTest {
         assertEquals("{\"mock\":\"json\"}", savedJob.getReportParams());
         assertEquals(ReportStatus.QUEUED, savedJob.getStatus());
         assertNotNull(savedJob.getRequestedDate());
+
+        // Verify SQS message was sent
+        verify(sqsTemplate, times(1)).send(eq("test-queue"), eq(savedJob.getReportId()));
     }
 
     @Test

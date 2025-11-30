@@ -4,11 +4,14 @@ spring:
   # Disable AWS Secrets Manager for local development
   cloud:
     aws:
+      region:
+        static: us-east-1  # LocalStack uses us-east-1 by default
       secretsmanager:
         enabled: false
       # LocalStack endpoints for local AWS services
       s3:
         endpoint: http://localhost:4566
+        path-style-access-enabled: true  # Use path-style URLs for LocalStack compatibility
       sqs:
         endpoint: http://localhost:4566
       ses:
@@ -57,6 +60,11 @@ aws:
   email:
     from-address: noreply-local@evplus.com
     enabled: false  # Mock email service for local
+
+# Notification Queue Configuration (LocalStack)
+notification:
+  queue:
+    name: ev-plus-notifications-local-queue
 
 # Logging - More verbose for local development
 logging:
