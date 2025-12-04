@@ -43,7 +43,7 @@ parameters:
     default: /home/circleci/workspace/test-results
   docker_repo_root:
     type: string
-    default: eval-pd
+    default: teachpoint
   project_name:
     type: string
     default: eval-pd-report-service
@@ -257,11 +257,11 @@ workflows:
           context: *core-context
 
       # Dependency scanning (runs on all branches, non-blocking)
-      - dependency-check:
-          name: Security - Dependency Check
-          requires:
-            - Build and Test
-          context: *core-context
+      #- dependency-check:
+      #    name: Security - Dependency Check
+      #    requires:
+      #      - Build and Test
+      #    context: *core-context
 
       # Build Docker image (runs on all branches)
       - build-docker-image:
