@@ -1,0 +1,49 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# CI/CD
+.circleci
+
+# IDE
+.idea
+.vscode
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings
+
+# Build artifacts (will be copied from target)
+target
+!target/*.jar
+
+# Documentation
+*.md
+docs
+
+# Logs
+*.log
+logs
+
+# Test files
+src/test
+
+# Maven wrapper (not needed in container)
+.mvn
+
+# Local environment
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Misc
+*.swp
+*.swo
+*~
+.notes

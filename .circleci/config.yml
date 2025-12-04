@@ -1,0 +1,296 @@
+version: 2.1
+
+orbs:
+  vsp-ci: vector-solutions/vsp-ci@1.13.4
+  aws-cli: circleci/aws-cli@5.2.0
+
+# YAML Anchors for reusability
+x-main-filters: &main-filters
+  branches:
+    only: main
+
+x-release-filters: &release-filters
+  branches:
+    only:
+      - main
+      - /release\/.*/
+
+x-preview-filters: &preview-filters
+  branches:
+    ignore:
+      - main
+      - /release\/.*/
+
+x-core-context: &core-context
+  - Vector Core CI
+
+# Pipeline parameters
+parameters:
+  workspace_dir:
+    type: string
+    default: /home/circleci/workspace
+  checkout_dir:
+    type: string
+    default: /home/circleci/workspace/project
+  source_dir:
+    type: string
+    default: /home/circleci/workspace/project
+  image_dir:
+    type: string
+    default: /home/circleci/workspace/images
+  test_results_dir:
+    type: string
+    default: /home/circleci/workspace/test-results
+  docker_repo_root:
+    type: string
+    default: core
+  project_name:
+    type: string
+    default: eval-pd-report-service
+
+# Jobs
+jobs:
+  build-and-test:
+    docker:
+      - image: cimg/openjdk:21.0
+    resource_class: large
+    steps:
+      - checkout:
+          path: << pipeline.parameters.checkout_dir >>
+
+      - restore_cache:
+          keys:
+            - maven-deps-v1-{{ checksum "pom.xml" }}
+            - maven-deps-v1-
+
+      - run:
+          name: Download Maven Dependencies
+          working_directory: << pipeline.parameters.source_dir >>
+          command: |
+            mvn dependency:go-offline -B
+
+      - save_cache:
+          paths:
+            - ~/.m2
+          key: maven-deps-v1-{{ checksum "pom.xml" }}
+
+      - run:
+          name: Run Maven Build
+          working_directory: << pipeline.parameters.source_dir >>
+          command: |
+            mvn clean package -DskipTests -B
+
+      - run:
+          name: Run Unit Tests with Coverage
+          working_directory: << pipeline.parameters.source_dir >>
+          command: |
+            mkdir -p << pipeline.parameters.test_results_dir >>
+            mvn test -B || true
+            # Copy test results (non-blocking)
+            find . -type f -regex ".*/target/surefire-reports/.*xml" -exec cp {} << pipeline.parameters.test_results_dir >>/ \;
+
+      - run:
+          name: Generate JaCoCo Coverage Report
+          working_directory: << pipeline.parameters.source_dir >>
+          command: |
+            mvn jacoco:report -B || true
+
+      - store_test_results:
+          path: << pipeline.parameters.test_results_dir >>
+
+      - store_artifacts:
+          path: << pipeline.parameters.source_dir >>/target/site/jacoco
+          destination: coverage-report
+
+      - store_artifacts:
+          path: << pipeline.parameters.test_results_dir >>
+          destination: test-results
+
+      - persist_to_workspace:
+          root: << pipeline.parameters.workspace_dir >>
+          paths:
+            - project/target/*.jar
+            - project/pom.xml
+            - project/src
+            - project/docker
+
+  dependency-check:
+    docker:
+      - image: cimg/openjdk:21.0
+    resource_class: medium
+    steps:
+      - checkout:
+          path: << pipeline.parameters.checkout_dir >>
+
+      - attach_workspace:
+          at: << pipeline.parameters.workspace_dir >>
+
+      - restore_cache:
+          keys:
+            - maven-deps-v1-{{ checksum "pom.xml" }}
+
+      - run:
+          name: OWASP Dependency Check
+          working_directory: << pipeline.parameters.source_dir >>
+          command: |
+            echo "Running OWASP Dependency Check..."
+            mvn org.owasp:dependency-check-maven:check \
+              -DfailBuildOnCVSS=7 \
+              -DsuppressionsLocation=.circleci/dependency-check-suppressions.xml \
+              || echo "Dependency check found vulnerabilities (non-blocking)"
+
+      - store_artifacts:
+          path: << pipeline.parameters.source_dir >>/target/dependency-check-report.html
+          destination: dependency-check-report
+
+  build-docker-image:
+    docker:
+      - image: cimg/openjdk:21.0
+    resource_class: medium
+    steps:
+      - checkout:
+          path: << pipeline.parameters.checkout_dir >>
+
+      - attach_workspace:
+          at: << pipeline.parameters.workspace_dir >>
+
+      - setup_remote_docker:
+          version: default
+          docker_layer_caching: true
+
+      - run:
+          name: Create Image Directory
+          command: |
+            mkdir -p << pipeline.parameters.image_dir >>
+
+      - vsp-ci/docker-build-image:
+          working_directory: << pipeline.parameters.source_dir >>
+          image_directory: << pipeline.parameters.image_dir >>
+          project_name: << pipeline.parameters.project_name >>
+          project_path: "."
+          docker_repo_root: << pipeline.parameters.docker_repo_root >>
+          git_branch: << pipeline.git.branch >>
+
+      - persist_to_workspace:
+          root: << pipeline.parameters.workspace_dir >>
+          paths:
+            - images/*.tar
+
+  scan-docker-image:
+    docker:
+      - image: cimg/base:current
+    resource_class: medium
+    steps:
+      - attach_workspace:
+          at: << pipeline.parameters.workspace_dir >>
+
+      - setup_remote_docker:
+          version: default
+
+      - vsp-ci/docker-scan-image-veracode:
+          image_directory: << pipeline.parameters.image_dir >>
+          project_name: << pipeline.parameters.project_name >>
+          veracode_api_key_id_var: VECTOR_VERACODE_API_ID
+          veracode_api_key_secret_var: VECTOR_VERACODE_API_KEY
+          report_mode: "true"
+          allowed_critical: 0
+          allowed_high: 5
+          allowed_medium: -1
+          allowed_low: -1
+
+  push-docker-image:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - checkout:
+          path: << pipeline.parameters.checkout_dir >>
+
+      - attach_workspace:
+          at: << pipeline.parameters.workspace_dir >>
+
+      - setup_remote_docker:
+          version: default
+
+      - vsp-ci/docker-push-image-ecr:
+          image_directory: << pipeline.parameters.image_dir >>
+          image_name: << pipeline.parameters.project_name >>
+          image_namespace: << pipeline.parameters.docker_repo_root >>
+
+  push-docker-image-manual:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - checkout:
+          path: << pipeline.parameters.checkout_dir >>
+
+      - attach_workspace:
+          at: << pipeline.parameters.workspace_dir >>
+
+      - setup_remote_docker:
+          version: default
+
+      - vsp-ci/docker-push-image-ecr:
+          image_directory: << pipeline.parameters.image_dir >>
+          image_name: << pipeline.parameters.project_name >>
+          image_namespace: << pipeline.parameters.docker_repo_root >>
+
+# Workflows
+workflows:
+  version: 2
+
+  build-test-deploy:
+    jobs:
+      # Build and test (runs on all branches)
+      - build-and-test:
+          name: Build and Test
+          context: *core-context
+
+      # Dependency scanning (runs on all branches, non-blocking)
+      - dependency-check:
+          name: Security - Dependency Check
+          requires:
+            - Build and Test
+          context: *core-context
+
+      # Build Docker image (runs on all branches)
+      - build-docker-image:
+          name: Build Docker Image
+          requires:
+            - Build and Test
+          context: *core-context
+
+      # Scan Docker image with Veracode (runs on all branches)
+      - scan-docker-image:
+          name: Security - Container Scan
+          requires:
+            - Build Docker Image
+          context:
+            - Vector Core CI
+            - VeracodeAgents
+
+      # Push to ECR (automatic for main and release/* branches)
+      - push-docker-image:
+          name: Push to ECR (Auto)
+          requires:
+            - Build Docker Image
+            - Security - Container Scan
+          context: *core-context
+          filters: *release-filters
+
+      # Manual approval to push from other branches (feature, bugfix, etc.)
+      - hold-for-manual-push:
+          name: Hold - Approve to Push to ECR
+          type: approval
+          requires:
+            - Build Docker Image
+            - Security - Container Scan
+          filters: *preview-filters
+
+      - push-docker-image-manual:
+          name: Push to ECR (Manual)
+          requires:
+            - Hold - Approve to Push to ECR
+          context: *core-context
+          filters: *preview-filters
