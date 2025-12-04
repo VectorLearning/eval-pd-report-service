@@ -163,6 +163,15 @@ jobs:
           command: |
             mkdir -p << pipeline.parameters.image_dir >>
 
+      - run:
+          name: Extract Version from pom.xml
+          working_directory: << pipeline.parameters.source_dir >>
+          command: |
+            # Extract version from pom.xml
+            VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+            echo "Extracted version: ${VERSION}"
+            echo "export VERSION=${VERSION}" >> $BASH_ENV
+
       - vsp-ci/docker-build-image:
           working_directory: << pipeline.parameters.source_dir >>
           image_directory: << pipeline.parameters.image_dir >>
