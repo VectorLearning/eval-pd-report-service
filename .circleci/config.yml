@@ -43,7 +43,7 @@ parameters:
     default: /home/circleci/workspace/test-results
   docker_repo_root:
     type: string
-    default: core
+    default: eval-pd
   project_name:
     type: string
     default: eval-pd-report-service
