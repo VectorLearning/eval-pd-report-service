@@ -1,6 +1,8 @@
 package com.evplus.report.controller;
 
 import com.evplus.report.exception.ReportJobNotFoundException;
+import com.evplus.report.exception.ReportNotReadyException;
+import com.evplus.report.exception.UnauthorizedException;
 import com.evplus.report.model.dto.ReportRequest;
 import com.evplus.report.model.dto.ReportResponse;
 import com.evplus.report.model.entity.ReportJob;
@@ -8,6 +10,7 @@ import com.evplus.report.model.enums.ReportStatus;
 import com.evplus.report.repository.ReportJobRepository;
 import com.evplus.report.security.UserPrincipal;
 import com.evplus.report.service.ReportGeneratorService;
+import com.evplus.report.service.S3Service;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -18,7 +21,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -41,6 +46,7 @@ public class ReportController {
 
     private final ReportGeneratorService reportGeneratorService;
     private final ReportJobRepository reportJobRepository;
+    private final S3Service s3Service;
 
     /**
      * Generate a new report.
@@ -186,5 +192,137 @@ public class ReportController {
         );
 
         return ResponseEntity.ok(jobs);
+    }
+
+    /**
+     * Download a completed report file.
+     * Streams the Excel file directly from S3 to the client.
+     *
+     * @param jobId the report job ID
+     * @param userPrincipal the authenticated user
+     * @return report file as byte array with download headers
+     */
+    @GetMapping("/download/{jobId}")
+    @Operation(
+        summary = "Download report file",
+        description = "Downloads a completed report file as an Excel attachment. " +
+                     "The report must be in COMPLETED status."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Report downloaded successfully",
+            content = @Content(mediaType = "application/octet-stream")
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "User not authenticated"
+        ),
+        @ApiResponse(
+            responseCode = "403",
+            description = "User not authorized to download this report"
+        ),
+        @ApiResponse(
+            responseCode = "404",
+            description = "Report job not found"
+        ),
+        @ApiResponse(
+            responseCode = "409",
+            description = "Report not ready yet (still processing or queued)"
+        ),
+        @ApiResponse(
+            responseCode = "500",
+            description = "Report generation failed or download error"
+        )
+    })
+    public ResponseEntity<byte[]> downloadReport(
+        @Parameter(description = "Report job ID", example = "550e8400-e29b-41d4-a716-446655440000")
+        @PathVariable String jobId,
+        @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        log.info("Download request: jobId={}, userId={}", jobId, userPrincipal.getUserId());
+
+        // 1. Retrieve job record
+        ReportJob job = reportJobRepository.findById(jobId)
+            .orElseThrow(() -> new ReportJobNotFoundException(
+                String.format("Report job not found: %s", jobId)
+            ));
+
+        // 2. Authorization check
+        if (!job.getUserId().equals(userPrincipal.getUserId())) {
+            log.warn("Unauthorized download attempt: jobId={}, requestingUserId={}, ownerUserId={}",
+                jobId, userPrincipal.getUserId(), job.getUserId());
+            throw new UnauthorizedException(
+                String.format("You are not authorized to download report %s", jobId)
+            );
+        }
+
+        // 3. Status validation
+        ReportStatus status = job.getStatus();
+        if (status != ReportStatus.COMPLETED) {
+            log.warn("Report not ready for download: jobId={}, status={}", jobId, status);
+            throw new ReportNotReadyException(jobId, status.name());
+        }
+
+        // 4. Extract S3 key from URL
+        String s3Key = extractS3Key(job.getS3Url());
+        log.debug("Extracted S3 key: {}", s3Key);
+
+        // 5. Download from S3
+        byte[] reportData = s3Service.downloadReport(s3Key);
+
+        // 6. Build response with download headers
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + job.getFilename() + "\"");
+        headers.setContentLength(reportData.length);
+
+        log.info("Report downloaded successfully: jobId={}, filename={}, size={} bytes",
+            jobId, job.getFilename(), reportData.length);
+
+        return ResponseEntity
+            .ok()
+            .headers(headers)
+            .body(reportData);
+    }
+
+    /**
+     * Extract S3 object key from presigned URL.
+     * Handles both presigned URLs and direct S3 keys.
+     *
+     * @param s3Url presigned S3 URL or direct key
+     * @return S3 object key (e.g., "reports/123/uuid/file.xlsx")
+     */
+    private String extractS3Key(String s3Url) {
+        if (s3Url == null) {
+            throw new IllegalStateException("S3 URL is null");
+        }
+
+        // If it's already a key format (starts with "reports/"), return as-is
+        if (s3Url.startsWith("reports/")) {
+            return s3Url;
+        }
+
+        // Extract key from presigned URL
+        // Format: https://bucket.s3.region.amazonaws.com/reports/123/uuid/file.xlsx?params
+        // or: https://s3.region.amazonaws.com/bucket/reports/123/uuid/file.xlsx?params
+        try {
+            String path;
+            int queryStart = s3Url.indexOf('?');
+            String urlWithoutQuery = queryStart > 0 ? s3Url.substring(0, queryStart) : s3Url;
+
+            // Find "reports/" in the URL
+            int reportsIndex = urlWithoutQuery.indexOf("reports/");
+            if (reportsIndex > 0) {
+                path = urlWithoutQuery.substring(reportsIndex);
+            } else {
+                throw new IllegalArgumentException("Invalid S3 URL format: missing 'reports/' path");
+            }
+
+            return path;
+        } catch (Exception e) {
+            log.error("Failed to extract S3 key from URL: {}", s3Url, e);
+            throw new IllegalStateException("Failed to extract S3 key from URL: " + e.getMessage());
+        }
     }
 }

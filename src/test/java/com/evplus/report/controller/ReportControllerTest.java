@@ -7,6 +7,7 @@ import com.evplus.report.model.enums.ReportStatus;
 import com.evplus.report.model.enums.ReportType;
 import com.evplus.report.repository.ReportJobRepository;
 import com.evplus.report.security.UserPrincipal;
+import com.evplus.report.service.S3Service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.context.ActiveProfiles;
@@ -24,6 +26,8 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.*;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -51,6 +55,9 @@ class ReportControllerTest {
 
     @Autowired
     private ReportJobRepository reportJobRepository;
+
+    @MockBean
+    private S3Service s3Service;
 
     private UserPrincipal testUser;
 
@@ -335,5 +342,150 @@ class ReportControllerTest {
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.status", is("QUEUED")))
                 .andExpect(jsonPath("$.jobId", notNullValue()));
+    }
+
+    // ==================== Download Endpoint Tests ====================
+
+    @Test
+    void testDownloadReport_WithCompletedReport_ReturnsFile() throws Exception {
+        // Arrange - Create completed report job
+        String jobId = UUID.randomUUID().toString();
+        String filename = "DUMMY_TEST_" + jobId + ".xlsx";
+        String s3Url = "reports/999/" + jobId + "/" + filename;
+        byte[] mockReportData = "mock excel data".getBytes();
+
+        ReportJob reportJob = new ReportJob();
+        reportJob.setReportId(jobId);
+        reportJob.setUserId(testUser.getUserId());
+        reportJob.setDistrictId(testUser.getUserId());
+        reportJob.setReportType(ReportType.DUMMY_TEST);
+        reportJob.setStatus(ReportStatus.COMPLETED);
+        reportJob.setRequestedDate(LocalDateTime.now().minusHours(1));
+        reportJob.setCompletedDate(LocalDateTime.now());
+        reportJob.setS3Url(s3Url);
+        reportJob.setFilename(filename);
+
+        reportJobRepository.save(reportJob);
+
+        // Mock S3Service to return mock data
+        when(s3Service.downloadReport(anyString())).thenReturn(mockReportData);
+
+        // Act & Assert
+        mockMvc.perform(get("/reports/download/" + jobId)
+                        .with(userPrincipal(testUser)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "application/octet-stream"))
+                .andExpect(header().string("Content-Disposition", "attachment; filename=\"" + filename + "\""))
+                .andExpect(content().bytes(mockReportData));
+    }
+
+    @Test
+    void testDownloadReport_WithNonExistentJobId_ReturnsNotFound() throws Exception {
+        // Arrange
+        String nonExistentJobId = UUID.randomUUID().toString();
+
+        // Act & Assert
+        mockMvc.perform(get("/reports/download/" + nonExistentJobId)
+                        .with(userPrincipal(testUser)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void testDownloadReport_WithUnauthorizedUser_ReturnsForbidden() throws Exception {
+        // Arrange - Create report owned by different user
+        String jobId = UUID.randomUUID().toString();
+        Integer otherUserId = 888;
+
+        ReportJob reportJob = new ReportJob();
+        reportJob.setReportId(jobId);
+        reportJob.setUserId(otherUserId);  // Different user
+        reportJob.setDistrictId(otherUserId);
+        reportJob.setReportType(ReportType.DUMMY_TEST);
+        reportJob.setStatus(ReportStatus.COMPLETED);
+        reportJob.setRequestedDate(LocalDateTime.now());
+        reportJob.setS3Url("reports/888/" + jobId + "/test.xlsx");
+        reportJob.setFilename("test.xlsx");
+
+        reportJobRepository.save(reportJob);
+
+        // Act & Assert - Test user (999) tries to download job owned by user 888
+        mockMvc.perform(get("/reports/download/" + jobId)
+                        .with(userPrincipal(testUser)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void testDownloadReport_WithQueuedReport_ReturnsConflict() throws Exception {
+        // Arrange - Create queued report (not ready yet)
+        String jobId = UUID.randomUUID().toString();
+
+        ReportJob reportJob = new ReportJob();
+        reportJob.setReportId(jobId);
+        reportJob.setUserId(testUser.getUserId());
+        reportJob.setDistrictId(testUser.getUserId());
+        reportJob.setReportType(ReportType.DUMMY_TEST);
+        reportJob.setStatus(ReportStatus.QUEUED);  // Not completed
+        reportJob.setRequestedDate(LocalDateTime.now());
+
+        reportJobRepository.save(reportJob);
+
+        // Act & Assert
+        mockMvc.perform(get("/reports/download/" + jobId)
+                        .with(userPrincipal(testUser)))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void testDownloadReport_WithProcessingReport_ReturnsConflict() throws Exception {
+        // Arrange - Create processing report (not ready yet)
+        String jobId = UUID.randomUUID().toString();
+
+        ReportJob reportJob = new ReportJob();
+        reportJob.setReportId(jobId);
+        reportJob.setUserId(testUser.getUserId());
+        reportJob.setDistrictId(testUser.getUserId());
+        reportJob.setReportType(ReportType.DUMMY_TEST);
+        reportJob.setStatus(ReportStatus.PROCESSING);  // Not completed
+        reportJob.setRequestedDate(LocalDateTime.now());
+        reportJob.setStartedDate(LocalDateTime.now());
+
+        reportJobRepository.save(reportJob);
+
+        // Act & Assert
+        mockMvc.perform(get("/reports/download/" + jobId)
+                        .with(userPrincipal(testUser)))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void testDownloadReport_WithPresignedS3Url_ExtractsKeyCorrectly() throws Exception {
+        // Arrange - Create completed report with presigned URL format
+        String jobId = UUID.randomUUID().toString();
+        String filename = "DUMMY_TEST_" + jobId + ".xlsx";
+        String s3Key = "reports/999/" + jobId + "/" + filename;
+        String presignedUrl = "https://bucket.s3.us-east-1.amazonaws.com/" + s3Key + "?X-Amz-Signature=abc123";
+        byte[] mockReportData = "mock excel data".getBytes();
+
+        ReportJob reportJob = new ReportJob();
+        reportJob.setReportId(jobId);
+        reportJob.setUserId(testUser.getUserId());
+        reportJob.setDistrictId(testUser.getUserId());
+        reportJob.setReportType(ReportType.DUMMY_TEST);
+        reportJob.setStatus(ReportStatus.COMPLETED);
+        reportJob.setRequestedDate(LocalDateTime.now().minusHours(1));
+        reportJob.setCompletedDate(LocalDateTime.now());
+        reportJob.setS3Url(presignedUrl);  // Full presigned URL
+        reportJob.setFilename(filename);
+
+        reportJobRepository.save(reportJob);
+
+        // Mock S3Service - verify it receives the extracted key
+        when(s3Service.downloadReport(s3Key)).thenReturn(mockReportData);
+
+        // Act & Assert
+        mockMvc.perform(get("/reports/download/" + jobId)
+                        .with(userPrincipal(testUser)))
+                .andExpect(status().isOk())
+                .andExpect(content().bytes(mockReportData));
     }
 }

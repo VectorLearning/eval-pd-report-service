@@ -165,13 +165,19 @@ public class ReportGeneratorService {
 
             // Send SQS message AFTER transaction commits to avoid race condition
             // This ensures the job is visible in the database before the listener picks it up
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    sqsTemplate.send(queueName, jobId);
-                    log.info("Sent SQS message for job: {} to queue: {}", jobId, queueName);
-                }
-            });
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        sqsTemplate.send(queueName, jobId);
+                        log.info("Sent SQS message for job: {} to queue: {}", jobId, queueName);
+                    }
+                });
+            } else {
+                // No active transaction (e.g., in tests), send immediately
+                sqsTemplate.send(queueName, jobId);
+                log.info("Sent SQS message for job: {} to queue: {}", jobId, queueName);
+            }
 
             // Estimate completion time (5 minutes from now)
             LocalDateTime estimatedCompletion = LocalDateTime.now().plusMinutes(5);
