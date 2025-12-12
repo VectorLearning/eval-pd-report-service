@@ -43,7 +43,7 @@ parameters:
     default: /home/circleci/workspace/test-results
   docker_repo_root:
     type: string
-    default: core
+    default: teachpoint
   project_name:
     type: string
     default: eval-pd-report-service
@@ -249,54 +249,103 @@ jobs:
 workflows:
   version: 2
 
-  build-test-deploy:
+  # Automatic workflow for main and release branches
+  build-test-deploy-auto:
     jobs:
-      # Build and test (runs on all branches)
+      # Build and test (automatic for main/release)
       - build-and-test:
-          name: Build and Test
+          name: Build and Test (Auto)
           context: *core-context
+          filters: *release-filters
 
-      # Dependency scanning (runs on all branches, non-blocking)
-      - dependency-check:
-          name: Security - Dependency Check
-          requires:
-            - Build and Test
-          context: *core-context
+      # Dependency scanning (runs on main/release, non-blocking)
+      #- dependency-check:
+      #    name: Security - Dependency Check
+      #    requires:
+      #      - Build and Test (Auto)
+      #    context: *core-context
+      #    filters: *release-filters
 
-      # Build Docker image (runs on all branches)
+      # Build Docker image (automatic for main/release)
       - build-docker-image:
-          name: Build Docker Image
+          name: Build Docker Image (Auto)
           requires:
-            - Build and Test
+            - Build and Test (Auto)
           context: *core-context
+          filters: *release-filters
 
-      # Scan Docker image with Veracode (runs on all branches)
+      # Scan Docker image with Veracode (automatic for main/release)
       - scan-docker-image:
-          name: Security - Container Scan
+          name: Security - Container Scan (Auto)
           requires:
-            - Build Docker Image
+            - Build Docker Image (Auto)
           context:
             - Vector Core CI
             - VeracodeAgents
+          filters: *release-filters
 
       # Push to ECR (automatic for main and release/* branches)
       - push-docker-image:
           name: Push to ECR (Auto)
           requires:
-            - Build Docker Image
-            - Security - Container Scan
+            - Build Docker Image (Auto)
+            - Security - Container Scan (Auto)
           context: *core-context
           filters: *release-filters
 
-      # Manual approval to push from other branches (feature, bugfix, etc.)
+  # Manual workflow for feature branches
+  build-test-deploy-manual:
+    jobs:
+      # Manual approval to start pipeline for feature branches
+      - hold-for-manual-start:
+          name: Hold - Approve to Start Pipeline
+          type: approval
+          filters: *preview-filters
+
+      # Build and test (manual trigger for feature branches)
+      - build-and-test:
+          name: Build and Test (Manual)
+          requires:
+            - Hold - Approve to Start Pipeline
+          context: *core-context
+          filters: *preview-filters
+
+      # Dependency scanning (manual trigger for feature branches)
+      #- dependency-check:
+      #    name: Security - Dependency Check (Manual)
+      #    requires:
+      #      - Build and Test (Manual)
+      #    context: *core-context
+      #    filters: *preview-filters
+
+      # Build Docker image (after manual approval)
+      - build-docker-image:
+          name: Build Docker Image (Manual)
+          requires:
+            - Build and Test (Manual)
+          context: *core-context
+          filters: *preview-filters
+
+      # Scan Docker image with Veracode (after manual approval)
+      - scan-docker-image:
+          name: Security - Container Scan (Manual)
+          requires:
+            - Build Docker Image (Manual)
+          context:
+            - Vector Core CI
+            - VeracodeAgents
+          filters: *preview-filters
+
+      # Manual approval to push from feature branches
       - hold-for-manual-push:
           name: Hold - Approve to Push to ECR
           type: approval
           requires:
-            - Build Docker Image
-            - Security - Container Scan
+            - Build Docker Image (Manual)
+            - Security - Container Scan (Manual)
           filters: *preview-filters
 
+      # Push to ECR (manual approval for feature branches)
       - push-docker-image-manual:
           name: Push to ECR (Manual)
           requires:
