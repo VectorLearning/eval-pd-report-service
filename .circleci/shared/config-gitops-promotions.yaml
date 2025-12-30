@@ -1,0 +1,66 @@
+version: 2.1
+
+orbs:
+  vsp-ci: vector-solutions/vsp-ci@1.13.4
+
+parameters:
+  auto_merge_pr:
+    type: boolean
+    default: true
+    description: "Controls automatic merging of GitOps promotion PRs. Set to true to enable auto-merge, false to disable. Dynamically set based on environment: true for nonprod, false for prod."
+
+jobs:
+  render-manifest-from-file:
+    docker:
+      - image: cimg/python:3.13.3-node
+    resource_class: small
+    parameters:
+      auto_merge:
+        type: integer
+        description: "Controls automatic merging of GitOps promotion PRs. Set to 1 to enable auto-merge, 0 to disable."
+    steps:
+      - vsp-ci/helm-setup:
+          helm-version: "v3.17.0"
+          helm-install-dir: "/usr/local/bin"
+      - vsp-ci/gitops-promote:
+          promotion_strategy: render-from-file
+          pipeline_number: "<< pipeline.number >>"
+          chart_dir: 'src/helm'
+          target_repo: "https://github.com/VectorLearning/eval-kubernetes-workfiles.git"
+          auto_merge: << parameters.auto_merge >>
+          debug: 0
+          project_name: ""
+          target_cluster: ""
+          target_namespace: ""
+
+workflows:
+  gitops-promotion-workflow-nonprod:
+    when: << pipeline.parameters.auto_merge_pr >>
+    jobs:
+      - render-manifest-from-file:
+          name: "Render Non-Production Manifest"
+          auto_merge: 1
+          context:
+            - Vector CI Bot GitHub
+            - Vector CI Bot CircleCI
+            - Vector Core CI
+            - Vector ArgoCD
+          filters:
+            branches:
+              only: main
+
+  gitops-promotion-workflow-prod:
+    when:
+      not: << pipeline.parameters.auto_merge_pr >>
+    jobs:
+      - render-manifest-from-file:
+          name: "Render Production Manifest"
+          auto_merge: 0
+          context:
+            - Vector CI Bot GitHub
+            - Vector CI Bot CircleCI
+            - Vector Core CI
+            - Vector ArgoCD
+          filters:
+            branches:
+              only: main
