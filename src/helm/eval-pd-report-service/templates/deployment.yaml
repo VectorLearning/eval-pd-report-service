@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "eval-pd-report-service.fullname" . }}
+  labels:
+    {{- include "eval-pd-report-service.labels" . | nindent 4 }}
+  namespace: {{ .Values.namespace }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit | default 2 }}
+  selector:
+    matchLabels:
+      {{- include "eval-pd-report-service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "eval-pd-report-service.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ .Chart.Name }}
+      containers:
+      - name: {{ include "eval-pd-report-service.fullname" . }}
+        image: "{{ .Values.image.repository }}{{ .Values.image.name }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+        ports:
+        - containerPort: {{ .Values.image.containerPort }}
+        {{- if .Values.secretProvider.enabled }}
+        env:
+        - name: {{ .Values.secretProvider.secretKeys.WRITE_DB_PASSWORD }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ default (include "common.names.fullname" . ) .Values.secretProvider.k8sSecret.name }}
+              key: {{ .Values.secretProvider.secretKeys.WRITE_DB_PASSWORD | quote }}
+        - name: {{ .Values.secretProvider.secretKeys.READ_DB_PASSWORD }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ default (include "common.names.fullname" . ) .Values.secretProvider.k8sSecret.name }}
+              key: {{ .Values.secretProvider.secretKeys.READ_DB_PASSWORD | quote }}
+        {{- end }}
+        envFrom:
+          - secretRef:
+              name: {{ include "eval-pd-report-service.fullname" . }}-env
+        volumeMounts:
+        {{- if .Values.secretProvider.enabled }}
+        - name: secrets-store
+          mountPath: "/mnt/secrets-store"
+          readOnly: true
+        {{- end }}
+      volumes:
+      {{- if .Values.secretProvider.enabled }}
+      - name: secrets-store
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: {{ include "eval-pd-report-service.fullname" . }}-spc
+      {{- end }}

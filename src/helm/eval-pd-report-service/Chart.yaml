@@ -1,0 +1,16 @@
+apiVersion: v2
+name: eval-pd-report-service
+description: EV+ Async Reporting Service - Spring Boot microservice for report generation and delivery
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - spring-boot
+  - reporting
+  - evplus
+  - microservice
+maintainers:
+  - name: EVPlus Team
+    email: team@evplus.com
+sources:
+  - https://github.com/evplus/eval-pd-report-service
