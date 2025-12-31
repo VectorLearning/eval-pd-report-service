@@ -1,0 +1,13 @@
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+namespace: develop
+istioHostDomain: api.dev.evplus.com
+
+nameOverride: develop-eval-pd-report-service
+fullnameOverride: develop-eval-pd-report-service
+
+env:
+  SQS_QUEUE_NAME: ev-plus-reporting-dev-queue
+  EMAIL_FROM_ADDRESS: noreply@evplus.com
+  OIDC_ISSUER_URI: https://dev-oidc.evplus.com
+  S3_BUCKET: ev-plus-reports-dev

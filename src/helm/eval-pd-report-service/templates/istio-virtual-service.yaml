@@ -1,0 +1,20 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ include "eval-pd-report-service.fullname" . }}-service-{{ .Values.namespace | default "dev" }}
+  namespace: {{ .Values.istioNamespace }}
+spec:
+  gateways:
+  - {{ .Values.istioGateway }}
+  hosts:
+  - {{ .Values.istioHostDomain }}
+  http:
+  - match:
+    - headers:
+        host:
+          exact: {{ .Values.istioHostDomain }}
+    route:
+    - destination:
+        host: {{ include "eval-pd-report-service.fullname" . }}-service.{{ .Values.namespace }}.svc.cluster.local
+        port:
+          number: {{ .Values.service.port }}

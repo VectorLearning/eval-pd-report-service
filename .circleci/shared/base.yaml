@@ -1,0 +1,32 @@
+version: 2.1
+
+# This base config file is used to define a noop job and workflow.
+# It is intended to be included in other CircleCI configuration files
+# to provide a default behavior when no relevant changes are detected.
+# It is also used as a fallback when no other jobs are applicable.
+
+parameters:
+  noop:
+    type: boolean
+    default: false
+  auto_merge_pr:
+    type: boolean
+    default: true
+    description: "Placeholder for gitops-promotions config"
+
+# Define shared jobs that will be available for all continued workflows
+jobs:
+  noop:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - run:
+          name: "No relevant changes detected"
+          command: echo "No relevant changes detected. Nothing to do."
+
+workflows:
+  noop-workflow:
+    when: << pipeline.parameters.noop >>
+    jobs:
+      - noop:
+          name: "No Updates Detected"

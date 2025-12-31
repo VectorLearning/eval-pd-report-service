@@ -1,0 +1,57 @@
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+autoscaling:
+  enabled: false
+
+replicaCount: 1
+revisionHistoryLimit: 1
+
+namespace: default
+
+istioNamespace: istio-ingress
+istioGateway: gateway-evplus-external
+istioHostDomain: ""
+
+image:
+  repository: ""
+  pullPolicy: Always
+  name: eval-pd-report-service
+  tag: ""
+  containerPort: 8080
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+resources:
+  limits:
+    memory: 2Gi
+    cpu: 2000m
+  requests:
+    memory: 1Gi
+    cpu: 500m
+
+service:
+  port: 8080
+  targetPort: 8080
+
+podAnnotations:
+  app: eval-pd-report-service
+
+secretProvider:
+  enabled: true
+  name: ""
+  objectName: ""
+  secretKeys:
+    WRITE_DB_PASSWORD: WRITE_DB_PASSWORD
+    READ_DB_PASSWORD: READ_DB_PASSWORD
+  k8sSecret:
+    type: ""
+    name: eval-pd-report-service
+
+# Environment variables (stored in Kubernetes secret)
+env: {}
+  # SQS_QUEUE_NAME: ""
+  # EMAIL_FROM_ADDRESS: ""
+  # OIDC_ISSUER_URI: ""
+  # S3_BUCKET: ""
