@@ -3,6 +3,7 @@ package com.evplus.report.controller;
 import com.evplus.report.exception.ReportJobNotFoundException;
 import com.evplus.report.exception.ReportNotReadyException;
 import com.evplus.report.exception.UnauthorizedException;
+import com.evplus.report.model.dto.ActivityByUserCriteria;
 import com.evplus.report.model.dto.ReportRequest;
 import com.evplus.report.model.dto.ReportResponse;
 import com.evplus.report.model.entity.ReportJob;
@@ -11,6 +12,7 @@ import com.evplus.report.repository.ReportJobRepository;
 import com.evplus.report.security.UserPrincipal;
 import com.evplus.report.service.ReportGeneratorService;
 import com.evplus.report.service.S3Service;
+import com.evplus.report.service.UserSelectionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -47,6 +49,7 @@ public class ReportController {
     private final ReportGeneratorService reportGeneratorService;
     private final ReportJobRepository reportJobRepository;
     private final S3Service s3Service;
+    private final UserSelectionService userSelectionService;
 
     /**
      * Generate a new report.
@@ -97,6 +100,10 @@ public class ReportController {
 
         log.info("Report generation request: type={}, userId={}, districtId={}",
             request.getReportType(), request.getUserId(), request.getDistrictId());
+
+        // User selection resolution (-2 for "All Users", -3 for "My Evaluees")
+        // is now handled during report generation, not here.
+        // This avoids storing thousands of user IDs in the job queue/database.
 
         ReportResponse response = reportGeneratorService.generateReport(
             request,
@@ -284,6 +291,25 @@ public class ReportController {
             .ok()
             .headers(headers)
             .body(reportData);
+    }
+
+    /**
+     * NOTE: User selection resolution has been moved to the report handler level.
+     * This method is no longer used but kept for reference.
+     * Resolution now happens during report generation to avoid storing
+     * thousands of user IDs in the job queue/database.
+     *
+     * @deprecated Use UserSelectionService.resolveUserIds() in the report handler instead
+     */
+    @Deprecated
+    @SuppressWarnings("unused")
+    private void resolveUserSelection_OLD(
+            ActivityByUserCriteria criteria,
+            Integer requesterId,
+            Integer districtId,
+            UserPrincipal userPrincipal) {
+        // This method is deprecated and no longer used
+        // User resolution now happens in ActivityByUserReportHandler
     }
 
     /**
