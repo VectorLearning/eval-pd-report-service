@@ -1,0 +1,17 @@
+image:
+  tag: ${IMAGE_TAG}
+image_tag_metadata:
+  source_repo: github.com:VectorLearning/eval-pd-report-service.git
+  source_branch: main
+  source_sha: f87fa6d4cd2f8813a30dfd7ead2cf46be346ee3e
+  source_git_tag: ${IMAGE_TAG}
+  pipeline_number: "23"
+helm_chart_metadata:
+  chart_name: eval-pd-report-service
+  project_name: eval-pd-report-service
+  release_name: dev
+  env_value_files: envs/values-develop.yaml
+k8s_metadata:
+  cluster: core-nonprod-east
+  namespace: dev
+date: "2026-01-05T06:53:40Z"
