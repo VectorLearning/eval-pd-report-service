@@ -397,6 +397,7 @@ public class ActivityByUserReportHandler implements ReportHandler {
                         .append("e.event_id, ")
                         .append("e.title as event_title, ")
                         .append("e.start_date as event_start, ")
+                        .append("e.location as location, ")
                         .append("p.name as program_name, ")
                         .append("COALESCE(CASE WHEN e.user_credit_type = ? ")
                         .append("  THEN SUM(psa.value) ELSE pea.value END, 0) as credit_value ")
