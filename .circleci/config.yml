@@ -3,7 +3,7 @@ version: 2.1
 setup: true
 
 orbs:
-  path-filtering: circleci/path-filtering@1.1.0
+  path-filtering: circleci/path-filtering@2.0.4
 
 workflows:
   setup-workflow:
@@ -21,14 +21,17 @@ workflows:
           mapping: |
             # Always include base config
             .* .circleci/shared/base.yaml
+
             # Source code changes trigger build pipeline
             src/main/.* .circleci/shared/config-build.yaml
             src/test/.* .circleci/shared/config-build.yaml
             pom.xml .circleci/shared/config-build.yaml
             Dockerfile .circleci/shared/config-build.yaml
             docker/.* .circleci/shared/config-build.yaml
+
             # Helm chart changes trigger GitOps promotions
             src/helm/eval-pd-report-service/.* .circleci/shared/config-chart.yaml
+
             # GitOps promotion file changes (auto_merge based on environment)
             gitops-promotions/.*/nonprod.* auto_merge_pr true .circleci/shared/config-gitops-promotions.yaml
             gitops-promotions/.*/prod.* auto_merge_pr false .circleci/shared/config-gitops-promotions.yaml

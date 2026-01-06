@@ -1,34 +1,20 @@
 version: 2.1
 
-orbs:
-  vsp-ci: vector-solutions/vsp-ci@1.13.4
-  aws-cli: circleci/aws-cli@5.2.0
-
-# YAML Anchors for reusability
-x-main-filters: &main-filters
-  branches:
-    only: main
-
 x-release-filters: &release-filters
   branches:
     only:
       - main
       - /release\/.*/
 
-x-preview-filters: &preview-filters
-  branches:
-    ignore:
-      - main
-      - /release\/.*/
-
-x-core-context: &core-context
-  - Vector Core CI
-
 x-promotion-context: &promotion-context
   - Vector CI Bot GitHub
   - Vector CI Bot CircleCI
   - Vector Core CI
   - Vector ArgoCD
+
+orbs:
+  vsp-ci: vector-solutions/vsp-ci@1.13.4
+  aws-cli: circleci/aws-cli@5.2.0
 
 # Pipeline parameters
 parameters:
@@ -264,14 +250,25 @@ jobs:
         type: integer
         default: 0
     steps:
+      - checkout:
+          path: << pipeline.parameters.checkout_dir >>
+      - run:
+          name: Extract Version from pom.xml
+          working_directory: << pipeline.parameters.checkout_dir >>
+          command: |
+            # Extract version from pom.xml
+            VERSION=$(grep -m1 '<version>' pom.xml | sed -n 's/.*<version>\(.*\)<\/version>.*/\1/p' | tr -d ' ')
+            echo "Extracted version: ${VERSION}"
+            echo "export IMAGE_TAG=${VERSION}" >> $BASH_ENV
       - vsp-ci/helm-setup:
           helm-version: "v3.17.0"
           helm-install-dir: "/usr/local/bin"
       - vsp-ci/gitops-promote:
-          target_repo: github.com/VectorLearning/eval-kubernetes-workfiles.git
+          target_repo: github.com/VectorLearning/eval-pd-report-service.git
           target_branch: main
           promotion_strategy: stage
           pipeline_number: << pipeline.number >>
+          image_tag: ${IMAGE_TAG}
           approval_job_name: << parameters.approval_job_name >>
           chart_dir: src/helm
           chart_name: eval-pd-report-service
@@ -282,26 +279,26 @@ jobs:
           auto_merge: << parameters.auto_merge >>
           debug: << parameters.debug >>
 
-# Workflows
 workflows:
-  # Automatic workflow for main and release branches
   build-test-deploy:
     jobs:
-      # Build and test (automatic for main/release)
       - build-and-test:
           name: Build and Test
-          context: *core-context
+          context: Vector Core CI
+
+      - hold-docker-build-and-ecr-push:
+          name: Hold - Approve Image Build and Push to ECR
+          type: approval
+          requires:
+            - Build and Test
           filters: *release-filters
 
-      # Build Docker image
       - build-docker-image:
           name: Build Docker Image
           requires:
-            - Build and Test
-          context: *core-context
-          filters: *release-filters
+            - Hold - Approve Image Build and Push to ECR
+          context: *promotion-context
 
-      # Scan Docker image with Veracode
       - scan-docker-image:
           name: Security - Container Scan
           requires:
@@ -311,13 +308,11 @@ workflows:
             - VeracodeAgents
           filters: *release-filters
 
-      # Push to ECR
       - push-docker-image:
-          name: Push to ECR
+          name: Push Docker Image to ECR
           requires:
             - Build Docker Image
-            - Security - Container Scan
-          context: *core-context
+          context: *promotion-context
           filters: *release-filters
 
       #---------------------------------------------------------##
@@ -328,104 +323,50 @@ workflows:
 
       # DEV Environment -----------------------------------------
       - hold:
-          name: eval-pd-report-service - Approve Promotion to Dev
+          name: Approve Promotion to Develop
           type: approval
           requires:
-            - Push to ECR
-          filters: *main-filters
+            - Push Docker Image to ECR
       - gitops-promote:
-          name: eval-pd-report-service - Promote to Dev
-          value_files: envs/values-dev.yaml
+          name: Promote to Develop
+          value_files: envs/values-develop.yaml
           target_cluster: core-nonprod-east
           target_namespace: dev
           context: *promotion-context
           requires:
-            - eval-pd-report-service - Approve Promotion to Dev
-          filters: *main-filters
+            - Approve Promotion to Develop
 
       # STAGE Environment ---------------------------------------
       - hold:
-          name: eval-pd-report-service - Approve Promotion to Stage
+          name: Approve Promotion to Staging
           type: approval
           requires:
-            - Push to ECR
-          filters: *main-filters
+            - Push Docker Image to ECR
+          filters: *release-filters
       - gitops-promote:
-          name: eval-pd-report-service - Promote to Stage
-          value_files: envs/values-stage.yaml
+          name: Promote to Staging
+          value_files: envs/values-staging.yaml
           target_cluster: core-nonprod-east
           target_namespace: stage
           context: *promotion-context
           requires:
-            - eval-pd-report-service - Approve Promotion to Stage
-          filters: *main-filters
+            - Approve Promotion to Staging
+          filters: *release-filters
 
       # PROD Environment ----------------------------------------
       - hold:
-          name: eval-pd-report-service - Approve PR to Promote to Prod
+          name: Approve PR to Promote to Production
           type: approval
           requires:
-            - eval-pd-report-service - Promote to Stage
-          filters: *main-filters
+            - Promote to Staging
+          filters: *release-filters
       - gitops-promote:
-          name: eval-pd-report-service - Create PR to Promote to Prod
-          value_files: envs/values-prod.yaml
+          name: Create PR to Promote to Production
+          value_files: envs/values-production.yaml
           target_cluster: core-prod-east
           target_namespace: production
           auto_merge: 0
           context: *promotion-context
           requires:
-            - eval-pd-report-service - Approve PR to Promote to Prod
-          filters: *main-filters
-
-  # Manual workflow for feature branches
-  build-test-deploy-manual:
-    jobs:
-      # Manual approval to start pipeline for feature branches
-      - hold-for-manual-start:
-          name: Hold - Approve to Start Pipeline
-          type: approval
-          filters: *preview-filters
-
-      # Build and test (manual trigger for feature branches)
-      - build-and-test:
-          name: Build and Test (Manual)
-          requires:
-            - Hold - Approve to Start Pipeline
-          context: *core-context
-          filters: *preview-filters
-
-      # Build Docker image (after manual approval)
-      - build-docker-image:
-          name: Build Docker Image (Manual)
-          requires:
-            - Build and Test (Manual)
-          context: *core-context
-          filters: *preview-filters
-
-      # Scan Docker image with Veracode (after manual approval)
-      - scan-docker-image:
-          name: Security - Container Scan (Manual)
-          requires:
-            - Build Docker Image (Manual)
-          context:
-            - Vector Core CI
-            - VeracodeAgents
-          filters: *preview-filters
-
-      # Manual approval to push from feature branches
-      - hold-for-manual-push:
-          name: Hold - Approve to Push to ECR
-          type: approval
-          requires:
-            - Build Docker Image (Manual)
-            - Security - Container Scan (Manual)
-          filters: *preview-filters
-
-      # Push to ECR (manual approval for feature branches)
-      - push-docker-image:
-          name: Push to ECR (Manual)
-          requires:
-            - Hold - Approve to Push to ECR
-          context: *core-context
-          filters: *preview-filters
+            - Approve PR to Promote to Production
+          filters: *release-filters

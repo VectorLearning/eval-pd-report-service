@@ -1,5 +1,17 @@
 version: 2.1
 
+x-release-filters: &release-filters
+  branches:
+    only:
+      - main
+      - /release\/.*/
+
+x-promotion-context: &promotion-context
+  - Vector CI Bot GitHub
+  - Vector CI Bot CircleCI
+  - Vector Core CI
+  - Vector ArgoCD
+
 orbs:
   vsp-ci: vector-solutions/vsp-ci@1.13.4
 
@@ -40,14 +52,7 @@ workflows:
       - render-manifest-from-file:
           name: "Render Non-Production Manifest"
           auto_merge: 1
-          context:
-            - Vector CI Bot GitHub
-            - Vector CI Bot CircleCI
-            - Vector Core CI
-            - Vector ArgoCD
-          filters:
-            branches:
-              only: main
+          context: *promotion-context
 
   gitops-promotion-workflow-prod:
     when:
@@ -56,11 +61,5 @@ workflows:
       - render-manifest-from-file:
           name: "Render Production Manifest"
           auto_merge: 0
-          context:
-            - Vector CI Bot GitHub
-            - Vector CI Bot CircleCI
-            - Vector Core CI
-            - Vector ArgoCD
-          filters:
-            branches:
-              only: main
+          context: *promotion-context
+          filters: *release-filters

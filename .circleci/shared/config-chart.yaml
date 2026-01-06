@@ -1,9 +1,10 @@
 version: 2.1
 
-# YAML Anchors
-x-main-filters: &main-filters
+x-release-filters: &release-filters
   branches:
-    only: main
+    only:
+      - main
+      - /release\/.*/
 
 x-promotion-context: &promotion-context
   - Vector CI Bot GitHub
@@ -98,7 +99,7 @@ workflows:
           type: approval
           requires:
             - eval-pd-report-service - Validate Chart
-          filters: *main-filters
+          filters: *release-filters
       - gitops-promote-chart:
           name: eval-pd-report-service - Promote Chart to Dev
           approval_job_name: eval-pd-report-service - Approve Chart Promotion to Dev
@@ -106,7 +107,7 @@ workflows:
           context: *promotion-context
           requires:
             - eval-pd-report-service - Approve Chart Promotion to Dev
-          filters: *main-filters
+          filters: *release-filters
 
       # STAGE Environment ---------------------------------------
       - hold:
@@ -114,7 +115,7 @@ workflows:
           type: approval
           requires:
             - eval-pd-report-service - Validate Chart
-          filters: *main-filters
+          filters: *release-filters
       - gitops-promote-chart:
           name: eval-pd-report-service - Promote Chart to Stage
           approval_job_name: eval-pd-report-service - Approve Chart Promotion to Stage
@@ -122,7 +123,7 @@ workflows:
           context: *promotion-context
           requires:
             - eval-pd-report-service - Approve Chart Promotion to Stage
-          filters: *main-filters
+          filters: *release-filters
 
       # PROD Environment ----------------------------------------
       - hold:
@@ -130,7 +131,7 @@ workflows:
           type: approval
           requires:
             - eval-pd-report-service - Promote Chart to Stage
-          filters: *main-filters
+          filters: *release-filters
       - gitops-promote-chart:
           name: eval-pd-report-service - Create PR to Promote Chart to Prod
           approval_job_name: eval-pd-report-service - Approve Chart Promotion to Prod
@@ -139,4 +140,4 @@ workflows:
           context: *promotion-context
           requires:
             - eval-pd-report-service - Approve Chart Promotion to Prod
-          filters: *main-filters
+          filters: *release-filters
