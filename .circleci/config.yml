@@ -318,7 +318,7 @@ workflows:
           name: Promote to Develop
           value_files: envs/values-develop.yaml
           target_cluster: core-nonprod-east
-          target_namespace: dev
+          target_namespace: develop
           context: *promotion-context
           requires:
             - Approve Promotion to Develop
@@ -334,7 +334,7 @@ workflows:
           name: Promote to Staging
           value_files: envs/values-staging.yaml
           target_cluster: core-nonprod-east
-          target_namespace: stage
+          target_namespace: staging
           context: *promotion-context
           requires:
             - Approve Promotion to Staging
