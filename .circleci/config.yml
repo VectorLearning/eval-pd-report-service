@@ -273,17 +273,10 @@ workflows:
           name: Build and Test
           context: Vector Core CI
 
-      - hold-docker-build-and-ecr-push:
-          name: Hold - Approve Image Build and Push to ECR
-          type: approval
-          requires:
-            - Build and Test
-          filters: *release-filters
-
       - build-docker-image:
           name: Build Docker Image
           requires:
-            - Hold - Approve Image Build and Push to ECR
+            - Build and Test
           context: *promotion-context
 
       - scan-docker-image:
@@ -308,11 +301,6 @@ workflows:
       #---------------------------------------------------------##
 
       # DEV Environment -----------------------------------------
-      - hold:
-          name: Approve Promotion to Develop
-          type: approval
-          requires:
-            - Push Docker Image to ECR
       - gitops-promote:
           name: Promote to Develop
           value_files: envs/values-develop.yaml
@@ -320,14 +308,15 @@ workflows:
           target_namespace: develop
           context: *promotion-context
           requires:
-            - Approve Promotion to Develop
+            - Push Docker Image to ECR
+            - Security - Container Scan
 
       # STAGE Environment ---------------------------------------
       - hold:
           name: Approve Promotion to Staging
           type: approval
           requires:
-            - Push Docker Image to ECR
+            - Promote to Develop
           filters: *release-filters
       - gitops-promote:
           name: Promote to Staging
