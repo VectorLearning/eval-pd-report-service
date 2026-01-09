@@ -13,9 +13,9 @@ istioGateway: gateway-evplus-external
 istioHostDomain: ""
 
 image:
-  repository: ""
+  registry: 224743395308.dkr.ecr.us-east-2.amazonaws.com
+  repository: teachpoint/eval-pd-report-service
   pullPolicy: Always
-  name: eval-pd-report-service
   tag: ""
   containerPort: 8080
 

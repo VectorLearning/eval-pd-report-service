@@ -1,8 +1,7 @@
 version: 2.1
 
 orbs:
-  vsp-ci: vector-solutions/vsp-ci@1.13.4
-  aws-cli: circleci/aws-cli@5.2.0
+  vsp-ci: vector-solutions/vsp-ci@1.13.7
 
 # ============================================================================
 # YAML Anchors
