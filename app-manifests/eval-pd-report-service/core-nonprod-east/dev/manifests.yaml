@@ -1,0 +1,155 @@
+---
+# Source: eval-pd-report-service/templates/env-secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: develop-eval-pd-report-service-env
+  namespace: develop
+type: Opaque
+data:
+  EMAIL_FROM_ADDRESS: bm9yZXBseUBldnBsdXMuY29t
+  OIDC_ISSUER_URI: aHR0cHM6Ly9kZXYtb2lkYy5ldnBsdXMuY29t
+  S3_BUCKET: ZXYtcGx1cy1yZXBvcnRzLWRldg==
+  SQS_QUEUE_NAME: ZXYtcGx1cy1yZXBvcnRpbmctZGV2LXF1ZXVl
+---
+# Source: eval-pd-report-service/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: develop-eval-pd-report-service
+  labels:
+    helm.sh/chart: eval-pd-report-service-0.1.0
+    app: develop-eval-pd-report-service
+    instance: develop-eval-pd-report-service
+    name: eval-pd-report-service
+    version: "1.0.0"
+    managed-by: Helm
+spec:
+  type: 
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: develop-eval-pd-report-service
+    instance: develop-eval-pd-report-service
+    name: eval-pd-report-service
+---
+# Source: eval-pd-report-service/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: develop-eval-pd-report-service
+  labels:
+    helm.sh/chart: eval-pd-report-service-0.1.0
+    app: develop-eval-pd-report-service
+    instance: develop-eval-pd-report-service
+    name: eval-pd-report-service
+    version: "1.0.0"
+    managed-by: Helm
+  namespace: develop
+spec:
+  replicas: 1
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app: develop-eval-pd-report-service
+      instance: develop-eval-pd-report-service
+      name: eval-pd-report-service
+  template:
+    metadata:
+      annotations:
+        app: eval-pd-report-service
+      labels:
+        app: develop-eval-pd-report-service
+        instance: develop-eval-pd-report-service
+        name: eval-pd-report-service
+    spec:
+      serviceAccountName: eval-pd-report-service
+      containers:
+      - name: develop-eval-pd-report-service
+        image: "eval-pd-report-service:main-40"
+        imagePullPolicy: Always
+        resources:
+          limits:
+            cpu: 2000m
+            memory: 2Gi
+          requests:
+            cpu: 500m
+            memory: 1Gi
+        ports:
+        - containerPort: 8080
+        env:
+        - name: WRITE_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: eval-pd-report-service
+              key: "WRITE_DB_PASSWORD"
+        - name: READ_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: eval-pd-report-service
+              key: "READ_DB_PASSWORD"
+        envFrom:
+          - secretRef:
+              name: develop-eval-pd-report-service-env
+        volumeMounts:
+        - name: secrets-store
+          mountPath: "/mnt/secrets-store"
+          readOnly: true
+      volumes:
+      - name: secrets-store
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: develop-eval-pd-report-service-spc
+---
+# Source: eval-pd-report-service/templates/secretproviderclass.yaml
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+    name: develop-eval-pd-report-service-spc
+    namespace: develop
+spec:
+  provider: aws
+  parameters:
+    objects: |
+      - objectName: eval-pd-report-service/dev/service-credentials
+        objectType: "secretsmanager"
+        jmesPath:
+          - path: "READ_DB_PASSWORD"
+            objectAlias: "READ_DB_PASSWORD"
+          - path: "WRITE_DB_PASSWORD"
+            objectAlias: "WRITE_DB_PASSWORD"
+  secretObjects:
+  - secretName: eval-pd-report-service
+    type: Opaque
+    data:
+      - objectName: "READ_DB_PASSWORD"
+        key: "READ_DB_PASSWORD"
+      - objectName: "WRITE_DB_PASSWORD"
+        key: "WRITE_DB_PASSWORD"
+---
+# Source: eval-pd-report-service/templates/istio-virtual-service.yaml
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: develop-eval-pd-report-service-service-develop
+  namespace: istio-ingress
+spec:
+  gateways:
+  - gateway-evplus-external
+  hosts:
+  - api.dev.evplus.com
+  http:
+  - match:
+    - headers:
+        host:
+          exact: api.dev.evplus.com
+    route:
+    - destination:
+        host: develop-eval-pd-report-service-service.develop.svc.cluster.local
+        port:
+          number: 8080
