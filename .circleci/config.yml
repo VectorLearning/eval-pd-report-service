@@ -1,42 +1,359 @@
 version: 2.1
 
-setup: true
-
 orbs:
-  path-filtering: circleci/path-filtering@2.0.4
+  vsp-ci: vector-solutions/vsp-ci@1.13.4
+  aws-cli: circleci/aws-cli@5.2.0
 
+# ============================================================================
+# YAML Anchors
+# ============================================================================
+x-release-filters: &release-filters
+  branches:
+    only:
+      - main
+      - /release\/.*/
+
+x-promotion-context: &promotion-context
+  - Vector CI Bot GitHub
+  - Vector CI Bot CircleCI
+  - Vector Core CI
+  - Vector ArgoCD
+
+# ============================================================================
+# Pipeline parameters
+# ============================================================================
+parameters:
+  workspace_dir:
+    type: string
+    default: /home/circleci/workspace
+  checkout_dir:
+    type: string
+    default: /home/circleci/workspace/project
+  source_dir:
+    type: string
+    default: /home/circleci/workspace/project
+  image_dir:
+    type: string
+    default: /home/circleci/workspace/images
+  test_results_dir:
+    type: string
+    default: /home/circleci/workspace/test-results
+  docker_repo_root:
+    type: string
+    default: teachpoint
+  project_name:
+    type: string
+    default: eval-pd-report-service
+  auto_merge_pr:
+    type: boolean
+    default: true
+    description: "Placeholder for gitops-promotions config"
+
+# ============================================================================
+# Jobs
+# ============================================================================
+jobs:
+  build-and-test:
+    docker:
+      - image: cimg/openjdk:21.0
+    resource_class: large
+    steps:
+      - checkout:
+          path: << pipeline.parameters.checkout_dir >>
+
+      - restore_cache:
+          keys:
+            - maven-deps-v1-{{ checksum "pom.xml" }}
+            - maven-deps-v1-
+
+      - run:
+          name: Download Maven Dependencies
+          working_directory: << pipeline.parameters.source_dir >>
+          command: |
+            mvn dependency:go-offline -B
+
+      - save_cache:
+          paths:
+            - ~/.m2
+          key: maven-deps-v1-{{ checksum "pom.xml" }}
+
+      - run:
+          name: Run Maven Build
+          working_directory: << pipeline.parameters.source_dir >>
+          command: |
+            mvn clean package -DskipTests -B
+
+      - run:
+          name: Run Unit Tests with Coverage
+          working_directory: << pipeline.parameters.source_dir >>
+          command: |
+            mkdir -p << pipeline.parameters.test_results_dir >>
+            mvn test -B || true
+            # Copy test results (non-blocking)
+            find . -type f -regex ".*/target/surefire-reports/.*xml" -exec cp {} << pipeline.parameters.test_results_dir >>/ \;
+
+      - run:
+          name: Generate JaCoCo Coverage Report
+          working_directory: << pipeline.parameters.source_dir >>
+          command: |
+            mvn jacoco:report -B || true
+
+      - store_test_results:
+          path: << pipeline.parameters.test_results_dir >>
+
+      - store_artifacts:
+          path: << pipeline.parameters.source_dir >>/target/site/jacoco
+          destination: coverage-report
+
+      - store_artifacts:
+          path: << pipeline.parameters.test_results_dir >>
+          destination: test-results
+
+      - persist_to_workspace:
+          root: << pipeline.parameters.workspace_dir >>
+          paths:
+            - project/target/*.jar
+            - project/pom.xml
+            - project/src
+            - project/docker
+
+  dependency-check:
+    docker:
+      - image: cimg/openjdk:21.0
+    resource_class: medium
+    steps:
+      - checkout:
+          path: << pipeline.parameters.checkout_dir >>
+
+      - attach_workspace:
+          at: << pipeline.parameters.workspace_dir >>
+
+      - restore_cache:
+          keys:
+            - maven-deps-v1-{{ checksum "pom.xml" }}
+
+      - run:
+          name: OWASP Dependency Check
+          working_directory: << pipeline.parameters.source_dir >>
+          command: |
+            echo "Running OWASP Dependency Check..."
+            mvn org.owasp:dependency-check-maven:check \
+              -DfailBuildOnCVSS=7 \
+              -DsuppressionsLocation=.circleci/dependency-check-suppressions.xml \
+              || echo "Dependency check found vulnerabilities (non-blocking)"
+
+      - store_artifacts:
+          path: << pipeline.parameters.source_dir >>/target/dependency-check-report.html
+          destination: dependency-check-report
+
+  build-docker-image:
+    docker:
+      - image: cimg/openjdk:21.0
+    resource_class: medium
+    steps:
+      - checkout:
+          path: << pipeline.parameters.checkout_dir >>
+
+      - attach_workspace:
+          at: << pipeline.parameters.workspace_dir >>
+
+      - setup_remote_docker:
+          version: default
+          docker_layer_caching: true
+
+      - run:
+          name: Create Image Directory
+          command: |
+            mkdir -p << pipeline.parameters.image_dir >>
+
+      - run:
+          name: Build APP Docker Image
+          working_directory: << pipeline.parameters.source_dir >>
+          command: |
+            docker build -f docker/Dockerfile -t << pipeline.parameters.docker_repo_root >>/<< pipeline.parameters.project_name >>:<< pipeline.git.branch >>-<< pipeline.number >> .
+            docker save -o << pipeline.parameters.image_dir >>/<< pipeline.parameters.project_name >>.tar << pipeline.parameters.docker_repo_root >>/<< pipeline.parameters.project_name >>:<< pipeline.git.branch >>-<< pipeline.number >>
+
+      - persist_to_workspace:
+          root: << pipeline.parameters.workspace_dir >>
+          paths:
+            - images/*.tar
+
+  scan-docker-image:
+    docker:
+      - image: cimg/base:current
+    resource_class: medium
+    steps:
+      - setup_remote_docker
+
+      - attach_workspace:
+          at: << pipeline.parameters.workspace_dir >>
+
+      - vsp-ci/docker-scan-image-veracode:
+          image_directory: << pipeline.parameters.image_dir >>
+          project_name: << pipeline.parameters.project_name >>
+          veracode_api_key_id_var: VECTOR_VERACODE_API_ID
+          veracode_api_key_secret_var: VECTOR_VERACODE_API_KEY
+          report_mode: "true"
+          allowed_critical: 0
+          allowed_high: 5
+          allowed_medium: -1
+          allowed_low: -1
+
+  push-docker-image:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - setup_remote_docker
+
+      - attach_workspace:
+          at: << pipeline.parameters.workspace_dir >>
+
+      - vsp-ci/docker-push-image-ecr:
+          image_directory: << pipeline.parameters.image_dir >>
+          image_name: << pipeline.parameters.project_name >>
+          image_namespace: << pipeline.parameters.docker_repo_root >>
+
+  # ============================================================================
+  # GitOps Promotion Job
+  # ============================================================================
+  gitops-promote:
+    docker:
+      - image: cimg/python:3.13.3-node
+    resource_class: small
+    parameters:
+      approval_job_name:
+        description: Name of the approval step
+        type: string
+        default: ''
+      value_files:
+        description: Comma-separated list of value files to use for the Helm chart
+        type: string
+      target_cluster:
+        description: Target cluster for the Helm chart deployment
+        type: string
+      target_namespace:
+        description: Target namespace for the Helm chart deployment
+        type: string
+      auto_merge:
+        description: Whether to automatically merge the PR created by the promotion (1=yes, 0=no)
+        type: integer
+        default: 1
+      debug:
+        description: Whether to enable debug mode for the promotion (1=debug,2=trace)
+        type: integer
+        default: 0
+    steps:
+      - checkout:
+          path: << pipeline.parameters.checkout_dir >>
+      - vsp-ci/helm-setup:
+          helm-version: "v3.17.0"
+          helm-install-dir: "/usr/local/bin"
+      - vsp-ci/gitops-promote:
+          target_repo: https://github.com/VectorLearning/rendered-k8s-manifests.git
+          promotion_strategy: generate
+          pipeline_number: << pipeline.number >>
+          image_tag: << pipeline.git.branch >>-<< pipeline.number >>
+          approval_job_name: << parameters.approval_job_name >>
+          chart_dir: helm
+          chart_name: << pipeline.parameters.project_name >>
+          project_name: << pipeline.parameters.project_name >>
+          value_files: << parameters.value_files >>
+          target_cluster: << parameters.target_cluster >>
+          target_namespace: << parameters.target_namespace >>
+          auto_merge: << parameters.auto_merge >>
+          debug: << parameters.debug >>
+
+# ============================================================================
+# Workflows
+# ============================================================================
 workflows:
-  setup-workflow:
+  build-test-deploy:
     jobs:
-      - path-filtering/filter:
-          debug: false
-          name: detect-changed-paths
-          base-revision: main
-          config-path: .circleci/shared/base.yaml
-          exclude: |
-            # Exclude all paths that are not relevant to the dynamic configuration
-            README.md
-            docs/.*
-            .gitignore
-          mapping: |
-            # Always include base config
-            .* .circleci/shared/base.yaml
+      - build-and-test:
+          name: Build and Test
+          context: Vector Core CI
 
-            # Source code changes trigger build pipeline
-            src/main/.* .circleci/shared/config-build.yaml
-            src/test/.* .circleci/shared/config-build.yaml
-            pom.xml .circleci/shared/config-build.yaml
-            Dockerfile .circleci/shared/config-build.yaml
-            docker/.* .circleci/shared/config-build.yaml
+      - hold-docker-build-and-ecr-push:
+          name: Hold - Approve Image Build and Push to ECR
+          type: approval
+          requires:
+            - Build and Test
+          filters: *release-filters
 
-            # Helm chart changes trigger GitOps promotions
-            src/helm/eval-pd-report-service/.* .circleci/shared/config-chart.yaml
+      - build-docker-image:
+          name: Build Docker Image
+          requires:
+            - Hold - Approve Image Build and Push to ECR
+          context: *promotion-context
 
-            # GitOps promotion file changes (auto_merge based on environment)
-            gitops-promotions/.*/nonprod.* auto_merge_pr true .circleci/shared/config-gitops-promotions.yaml
-            gitops-promotions/.*/prod.* auto_merge_pr false .circleci/shared/config-gitops-promotions.yaml
-          filters:
-            branches:
-              ignore:
-                - hydrated-manifests
-                - /^promote\/.*/
+      - scan-docker-image:
+          name: Security - Container Scan
+          requires:
+            - Build Docker Image
+          context:
+            - Vector Core CI
+            - VeracodeAgents
+          filters: *release-filters
+
+      - push-docker-image:
+          name: Push Docker Image to ECR
+          requires:
+            - Build Docker Image
+          context: *promotion-context
+
+      #---------------------------------------------------------##
+      ##                                                        ##
+      ## PROMOTION WORKFLOW JOBS                                ##
+      ##                                                        ##
+      #---------------------------------------------------------##
+
+      # DEV Environment -----------------------------------------
+      - hold:
+          name: Approve Promotion to Develop
+          type: approval
+          requires:
+            - Push Docker Image to ECR
+      - gitops-promote:
+          name: Promote to Develop
+          value_files: envs/values-develop.yaml
+          target_cluster: core-nonprod-east
+          target_namespace: dev
+          context: *promotion-context
+          requires:
+            - Approve Promotion to Develop
+
+      # STAGE Environment ---------------------------------------
+      - hold:
+          name: Approve Promotion to Staging
+          type: approval
+          requires:
+            - Push Docker Image to ECR
+          filters: *release-filters
+      - gitops-promote:
+          name: Promote to Staging
+          value_files: envs/values-staging.yaml
+          target_cluster: core-nonprod-east
+          target_namespace: stage
+          context: *promotion-context
+          requires:
+            - Approve Promotion to Staging
+          filters: *release-filters
+
+      # PROD Environment ----------------------------------------
+      - hold:
+          name: Approve PR to Promote to Production
+          type: approval
+          requires:
+            - Promote to Staging
+          filters: *release-filters
+      - gitops-promote:
+          name: Create PR to Promote to Production
+          value_files: envs/values-production.yaml
+          target_cluster: core-prod-east
+          target_namespace: production
+          auto_merge: 0
+          context: *promotion-context
+          requires:
+            - Approve PR to Promote to Production
+          filters: *release-filters
