@@ -59,7 +59,7 @@ aws:
   s3:
     bucket-name: ${S3_BUCKET_NAME:ev-plus-reports-dev}
   sqs:
-    queue-name: ${SQS_QUEUE_NAME:ev-plus-reporting-dev-queue}
+    queue-name: ${SQS_QUEUE_NAME:eval-pd-develop-report-service-queue}
   email:
     from-address: ${EMAIL_FROM_ADDRESS:noreply-dev@evplus.com}
     enabled: true
