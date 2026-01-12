@@ -14,8 +14,8 @@ spring:
 
   # Write Database Configuration (Primary/Master)
   datasource:
-    url: jdbc:mysql://stage-db-primary.evplus.com:3306/teachpoint?useSSL=true&requireSSL=true&serverTimezone=UTC
-    username: tpuser_write
+    url: jdbc:mysql://tp-dev-aurora-tp07-cluster.cluster-cae1ujnpbdxv.us-east-2.rds.amazonaws.com:3306/tp7?useSSL=true&requireSSL=true
+    username: tpuser
     password: ${WRITE_DB_PASSWORD}  # Loaded from Secrets Manager
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
@@ -28,15 +28,15 @@ spring:
 
     # Read Database Configuration (Replica)
     read:
-      url: jdbc:mysql://stage-db-replica.evplus.com:3306/teachpoint?useSSL=true&requireSSL=true&serverTimezone=UTC
-      username: tpuser_read
+      url: jdbc:mysql://tp-dev-aurora-tp07-cluster.cluster-ro-cae1ujnpbdxv.us-east-2.rds.amazonaws.com:3306/tp7?useSSL=true&requireSSL=true
+      username: tpsupport
       password: ${READ_DB_PASSWORD}  # Loaded from Secrets Manager
       driver-class-name: com.mysql.cj.jdbc.Driver
 
   # Redis Configuration
   data:
     redis:
-      host: stage-redis.evplus.com
+      host: tp-dev-valkey.lz1efg.ng.0001.use2.cache.amazonaws.com
       port: 6379
       password: ${REDIS_PASSWORD}  # Loaded from Secrets Manager
       timeout: 2000
