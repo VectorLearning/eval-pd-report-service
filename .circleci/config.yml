@@ -19,6 +19,54 @@ x-promotion-context: &promotion-context
   - Vector ArgoCD
 
 # ============================================================================
+# Commands
+# ============================================================================
+commands:
+  set-image-tag:
+    description: "Set IMAGE_TAG environment variable based on branch"
+    parameters:
+      working_directory:
+        type: string
+        default: .
+    steps:
+      - when:
+          condition:
+            not:
+              equal: [ main, << pipeline.git.branch >> ]
+          steps:
+            - run:
+                name: Set Image Tag for Feature Branch
+                working_directory: << parameters.working_directory >>
+                environment:
+                  PIPELINE_NUMBER: << pipeline.number >>
+                command: |
+                  # For non-main branches, use branch-slug + pipeline number
+                  BRANCH_SLUG=$(echo "$CIRCLE_BRANCH" | sed 's/[^a-zA-Z0-9]/-/g' | cut -c1-50)
+                  echo "export IMAGE_TAG=${BRANCH_SLUG}-${PIPELINE_NUMBER}" >> "$BASH_ENV"
+                  source "$BASH_ENV"
+                  echo "IMAGE_TAG: $IMAGE_TAG"
+                  echo "$IMAGE_TAG" > /tmp/image-tag.txt
+      - when:
+          condition:
+            equal: [ main, << pipeline.git.branch >> ]
+          steps:
+            - run:
+                name: Set Image Tag for Main Branch
+                working_directory: << parameters.working_directory >>
+                environment:
+                  PIPELINE_NUMBER: << pipeline.number >>
+                command: |
+                  # For main branch, use pom.xml version + pipeline number
+                  VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+                  # Remove -SNAPSHOT suffix if present for cleaner tags
+                  VERSION_CLEAN=$(echo "$VERSION" | sed 's/-SNAPSHOT//')
+                  IMAGE_TAG="${VERSION_CLEAN}-${PIPELINE_NUMBER}"
+                  echo "export IMAGE_TAG=${IMAGE_TAG}" >> "$BASH_ENV"
+                  source "$BASH_ENV"
+                  echo "IMAGE_TAG: $IMAGE_TAG"
+                  echo "$IMAGE_TAG" > /tmp/image-tag.txt
+
+# ============================================================================
 # Pipeline parameters
 # ============================================================================
 parameters:
@@ -156,6 +204,11 @@ jobs:
       - attach_workspace:
           at: << pipeline.parameters.workspace_dir >>
 
+      - restore_cache:
+          keys:
+            - maven-deps-v1-{{ checksum "pom.xml" }}
+            - maven-deps-v1-
+
       - setup_remote_docker:
           version: default
           docker_layer_caching: true
@@ -165,17 +218,23 @@ jobs:
           command: |
             mkdir -p << pipeline.parameters.image_dir >>
 
+      - set-image-tag:
+          working_directory: << pipeline.parameters.source_dir >>
+
       - run:
           name: Build APP Docker Image
           working_directory: << pipeline.parameters.source_dir >>
           command: |
-            docker build -f docker/Dockerfile -t << pipeline.parameters.docker_repo_root >>/<< pipeline.parameters.project_name >>:<< pipeline.git.branch >>-<< pipeline.number >> .
-            docker save -o << pipeline.parameters.image_dir >>/<< pipeline.parameters.project_name >>.tar << pipeline.parameters.docker_repo_root >>/<< pipeline.parameters.project_name >>:<< pipeline.git.branch >>-<< pipeline.number >>
+            echo "Building image with tag: ${IMAGE_TAG}"
+            docker build -f docker/Dockerfile -t << pipeline.parameters.docker_repo_root >>/<< pipeline.parameters.project_name >>:${IMAGE_TAG} .
+            docker save -o << pipeline.parameters.image_dir >>/<< pipeline.parameters.project_name >>.tar << pipeline.parameters.docker_repo_root >>/<< pipeline.parameters.project_name >>:${IMAGE_TAG}
+            cp /tmp/image-tag.txt << pipeline.parameters.image_dir >>/
 
       - persist_to_workspace:
           root: << pipeline.parameters.workspace_dir >>
           paths:
             - images/*.tar
+            - images/image-tag.txt
 
   scan-docker-image:
     docker:
@@ -245,6 +304,14 @@ jobs:
     steps:
       - checkout:
           path: << pipeline.parameters.checkout_dir >>
+      - attach_workspace:
+          at: << pipeline.parameters.workspace_dir >>
+      - run:
+          name: Set Image Tag from Workspace
+          command: |
+            IMAGE_TAG=$(cat << pipeline.parameters.image_dir >>/image-tag.txt)
+            echo "Using image tag: ${IMAGE_TAG}"
+            echo "export PARAM_IMAGE_TAG=${IMAGE_TAG}" >> $BASH_ENV
       - vsp-ci/helm-setup:
           helm-version: "v3.17.0"
           helm-install-dir: "/usr/local/bin"
@@ -252,7 +319,6 @@ jobs:
           target_repo: https://github.com/VectorLearning/rendered-k8s-manifests.git
           promotion_strategy: generate
           pipeline_number: << pipeline.number >>
-          image_tag: << pipeline.git.branch >>-<< pipeline.number >>
           approval_job_name: << parameters.approval_job_name >>
           chart_dir: helm
           chart_name: << pipeline.parameters.project_name >>
