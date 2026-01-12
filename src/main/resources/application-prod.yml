@@ -40,7 +40,8 @@ spring:
       port: 6379
       password: ${REDIS_PASSWORD}  # Loaded from Secrets Manager
       timeout: 2000
-      ssl: true
+      ssl:
+        enabled: true
       lettuce:
         pool:
           max-active: 50
