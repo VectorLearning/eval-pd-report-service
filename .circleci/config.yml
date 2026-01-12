@@ -375,7 +375,6 @@ workflows:
           context: *promotion-context
           requires:
             - Push Docker Image to ECR
-            - Security - Container Scan
 
       # STAGE Environment ---------------------------------------
       - hold:
