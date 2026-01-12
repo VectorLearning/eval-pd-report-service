@@ -11,3 +11,5 @@ env:
   EMAIL_FROM_ADDRESS: noreply@evplus.com
   OIDC_ISSUER_URI: https://stage-oidc.evplus.com
   S3_BUCKET: ev-plus-reports-stage
+  SPRING_PROFILES_ACTIVE: stage
+  SQS_QUEUE_URL: https://sqs.us-east-2.amazonaws.com/760612481786/eval-pd-stage-report-service--queue

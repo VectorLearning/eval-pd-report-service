@@ -12,3 +12,4 @@ env:
   OIDC_ISSUER_URI: https://dev-oidc.evplus.com
   S3_BUCKET: ev-plus-reports-dev
   SPRING_PROFILES_ACTIVE: dev
+  SQS_QUEUE_URL: https://sqs.us-east-2.amazonaws.com/760612481786/eval-pd-develop-report-service-queue
