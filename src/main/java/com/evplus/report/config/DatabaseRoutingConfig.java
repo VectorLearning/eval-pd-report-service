@@ -63,6 +63,9 @@ public class DatabaseRoutingConfig {
         routingDataSource.setTargetDataSources(targetDataSources);
         routingDataSource.setDefaultTargetDataSource(writeDataSource);
 
+        // Initialize the routing datasource
+        routingDataSource.afterPropertiesSet();
+
         // Use LazyConnectionDataSourceProxy to defer connection acquisition
         // until actual database operation is performed
         return new LazyConnectionDataSourceProxy(routingDataSource);
