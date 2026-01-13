@@ -38,6 +38,9 @@ spring:
         enabled: true  # Will be overridden to false in local profile
       sqs:
         listener:
+          poll-timeout: 20s # Wait time for long polling
+          max-messages-per-poll: 10
+          max-concurrent-messages: 10
           queue-not-found-strategy: fail  # Fail if queue doesn't exist instead of creating it
 
 # Server Configuration

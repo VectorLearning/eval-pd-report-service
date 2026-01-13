@@ -11,3 +11,6 @@ env:
   EMAIL_FROM_ADDRESS: noreply@evplus.com
   OIDC_ISSUER_URI: https://oidc.evplus.com
   S3_BUCKET: ev-plus-reports-prod
+  SPRING_PROFILES_ACTIVE: prod
+  SQS_QUEUE_URL: 
+  NOTIFICATION_QUEUE_NAME: https://sqs.us-east-2.amazonaws.com/325923818481/tp1_Notifications.fifo
