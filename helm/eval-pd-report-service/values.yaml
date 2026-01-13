@@ -9,7 +9,7 @@ revisionHistoryLimit: 1
 namespace: default
 
 istioNamespace: istio-ingress
-istioGateway: gateway-evplus-external
+istioGateway: gateway-vector-external
 istioHostDomain: ""
 
 image:
