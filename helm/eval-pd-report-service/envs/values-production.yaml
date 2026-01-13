@@ -1,7 +1,7 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 namespace: production
-istioHostDomain: api.evplus.com
+istioHostDomain: tp1.goteachpoint.com
 
 nameOverride: production-eval-pd-report-service
 fullnameOverride: production-eval-pd-report-service
