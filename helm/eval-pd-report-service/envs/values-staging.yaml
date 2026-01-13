@@ -1,7 +1,7 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 namespace: staging
-istioHostDomain: tp7.goteachpoint.com
+istioHostDomain: api-stage.goteachpoint.com
 
 nameOverride: staging-eval-pd-report-service
 fullnameOverride: staging-eval-pd-report-service
