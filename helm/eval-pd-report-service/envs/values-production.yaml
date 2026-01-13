@@ -3,8 +3,8 @@
 namespace: production
 istioHostDomain: tp1.goteachpoint.com
 
-nameOverride: production-eval-pd-report-service
-fullnameOverride: production-eval-pd-report-service
+nameOverride: production-eval-pd-report
+fullnameOverride: production-eval-pd-report
 
 env:
   SQS_QUEUE_NAME: ev-plus-reporting-prod-queue

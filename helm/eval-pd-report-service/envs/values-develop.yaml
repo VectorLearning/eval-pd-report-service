@@ -3,8 +3,8 @@
 namespace: develop
 istioHostDomain: api-dev.goteachpoint.com
 
-nameOverride: develop-eval-pd-report-service
-fullnameOverride: develop-eval-pd-report-service
+nameOverride: develop-eval-pd-report
+fullnameOverride: develop-eval-pd-report
 
 env:
   SQS_QUEUE_NAME: eval-pd-develop-report-service-queue

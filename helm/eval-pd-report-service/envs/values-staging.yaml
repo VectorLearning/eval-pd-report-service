@@ -3,8 +3,8 @@
 namespace: staging
 istioHostDomain: api-stage.goteachpoint.com
 
-nameOverride: staging-eval-pd-report-service
-fullnameOverride: staging-eval-pd-report-service
+nameOverride: staging-eval-pd-report
+fullnameOverride: staging-eval-pd-report
 
 env:
   SQS_QUEUE_NAME: ev-plus-reporting-stage-queue
