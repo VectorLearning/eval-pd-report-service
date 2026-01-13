@@ -13,3 +13,4 @@ env:
   S3_BUCKET: ev-plus-reports-dev
   SPRING_PROFILES_ACTIVE: dev
   SQS_QUEUE_URL: https://sqs.us-east-2.amazonaws.com/760612481786/eval-pd-develop-report-service-queue
+  NOTIFICATION_QUEUE_NAME: https://sqs.us-east-2.amazonaws.com/370246022780/tp3a_Notifications.fifo
