@@ -34,7 +34,9 @@ spec:
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
         ports:
-        - containerPort: {{ .Values.image.containerPort }}
+        - name: http
+          containerPort: {{ .Values.image.containerPort }}
+          protocol: TCP
         {{- if .Values.secretProvider.enabled }}
         env:
         - name: {{ .Values.secretProvider.secretKeys.WRITE_DB_PASSWORD }}

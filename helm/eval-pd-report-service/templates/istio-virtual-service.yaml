@@ -10,7 +10,9 @@ spec:
   - {{ .Values.istioHostDomain }}
   http:
   - match:
-    - headers:
+    - uri:
+        prefix: /ev-pd-report/v1
+      headers:
         host:
           exact: {{ .Values.istioHostDomain }}
     route:
