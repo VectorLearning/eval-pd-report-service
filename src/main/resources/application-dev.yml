@@ -1,6 +1,11 @@
 # Development Environment Configuration
 
 spring:
+  # TEMPORARY: Disable security for dev testing
+  # TODO: Remove this before production!
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
   # AWS Secrets Manager Configuration
   # Only passwords are loaded from Secrets Manager: /secret/eval-pd-report-service/dev
   # Required secrets:
