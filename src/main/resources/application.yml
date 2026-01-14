@@ -32,16 +32,33 @@ spring:
     aws:
       region:
         static: us-east-2
-      # No credentials config - Spring Cloud AWS 3.x auto-detects IRSA from environment variables
-      # (AWS_ROLE_ARN, AWS_WEB_IDENTITY_TOKEN_FILE)
-      secretsmanager:
-        enabled: true  # Will be overridden to false in local profile
+      # Credentials autoconfiguration via DefaultCredentialsProvider chain:
+      # 1. Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+      # 2. System properties (aws.accessKeyId, aws.secretAccessKey)
+      # 3. Web Identity Token (IRSA) - AWS_ROLE_ARN, AWS_WEB_IDENTITY_TOKEN_FILE
+      # 4. Container credentials (ECS)
+      # 5. EC2 instance metadata
+      # Override in application-local.yml with static credentials for LocalStack
+      credentials:
+        access-key: ${AWS_ACCESS_KEY_ID:}
+        secret-key: ${AWS_SECRET_ACCESS_KEY:}
+      s3:
+        enabled: true
+        # path-style-access-enabled: false (default for AWS S3)
+        # endpoint: (empty for AWS S3, override in application-local.yml for LocalStack)
       sqs:
+        enabled: true
         listener:
-          poll-timeout: 20s # Wait time for long polling
+          poll-timeout: 20s
           max-messages-per-poll: 10
           max-concurrent-messages: 10
-          queue-not-found-strategy: fail  # Fail if queue doesn't exist instead of creating it
+          queue-not-found-strategy: fail
+        # endpoint: (empty for AWS SQS, override in application-local.yml for LocalStack)
+      ses:
+        enabled: true
+        # endpoint: (empty for AWS SES, override in application-local.yml for LocalStack)
+      secretsmanager:
+        enabled: true  # Will be overridden to false in local profile
 
 # Server Configuration
 server:

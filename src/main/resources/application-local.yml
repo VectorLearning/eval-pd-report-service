@@ -1,28 +1,33 @@
 # Local Development Environment Configuration
 
 spring:
-  # Disable AWS Secrets Manager for local development
+  # LocalStack Configuration for Local Development
   cloud:
     aws:
       region:
         static: us-east-1  # LocalStack uses us-east-1 by default
-      secretsmanager:
-        enabled: false
-      # LocalStack endpoints for local AWS services
-      s3:
-        endpoint: http://localhost:4566
-        path-style-access-enabled: true  # Use path-style URLs for LocalStack compatibility
-      sqs:
-        endpoint: http://localhost:4566
-      ses:
-        endpoint: http://localhost:4566
+      # Static credentials for LocalStack
+      # These override the DefaultCredentialsProvider chain
       credentials:
         access-key: test
         secret-key: test
+      # LocalStack endpoint overrides
+      s3:
+        enabled: true
+        endpoint: http://localhost:4566
+        path-style-access-enabled: true  # Required for LocalStack S3 and presigned URLs
+      sqs:
+        enabled: true
+        endpoint: http://localhost:4566
+      ses:
+        enabled: true
+        endpoint: http://localhost:4566
+      secretsmanager:
+        enabled: false  # Disable Secrets Manager for local development
 
   # Local Database Configuration (Plain text credentials - LOCAL ONLY)
   datasource:
-    url: jdbc:mysql://localhost:3306/teachpoint?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    url: jdbc:mysql://localhost:3306/teachpoint?useSSL=false&allowPublicKeyRetrieval=true
     username: tpuser
     password: tppass1
     driver-class-name: com.mysql.cj.jdbc.Driver
