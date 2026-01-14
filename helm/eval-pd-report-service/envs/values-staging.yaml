@@ -1,10 +1,10 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 namespace: staging
-istioHostDomain: api.stage.evplus.com
+istioHostDomain: api-stage.goteachpoint.com
 
-nameOverride: staging-eval-pd-report-service
-fullnameOverride: staging-eval-pd-report-service
+nameOverride: staging-eval-pd-report
+fullnameOverride: staging-eval-pd-report
 
 env:
   SQS_QUEUE_NAME: ev-plus-reporting-stage-queue
