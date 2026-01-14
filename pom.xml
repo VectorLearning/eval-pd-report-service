@@ -25,7 +25,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- Dependency Versions -->
-        <spring-cloud-aws.version>3.1.1</spring-cloud-aws.version>
+        <spring-cloud-aws.version>3.4.2</spring-cloud-aws.version>
         <springdoc-openapi.version>2.3.0</springdoc-openapi.version>
         <poi.version>5.2.5</poi.version>
         <logstash-logback.version>7.4</logstash-logback.version>
@@ -101,7 +101,7 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
-        <!-- AWS Integration - Spring Cloud AWS 3.x -->
+        <!-- AWS Integration - Spring Cloud AWS 3.4.2 -->
         <dependency>
             <groupId>io.awspring.cloud</groupId>
             <artifactId>spring-cloud-aws-starter</artifactId>
@@ -117,17 +117,19 @@
             <artifactId>spring-cloud-aws-starter-sqs</artifactId>
         </dependency>
 
-        <!-- AWS SDK 2.x for S3 and SES -->
-        <!-- Note: S3Presigner is included in the s3 artifact, no separate dependency needed -->
+        <!-- Spring Cloud AWS S3 Starter - Autoconfigures S3Client and S3Presigner -->
         <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>s3</artifactId>
+            <groupId>io.awspring.cloud</groupId>
+            <artifactId>spring-cloud-aws-starter-s3</artifactId>
         </dependency>
 
+        <!-- Spring Cloud AWS SES Starter - Autoconfigures SesClient -->
         <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>ses</artifactId>
+            <groupId>io.awspring.cloud</groupId>
+            <artifactId>spring-cloud-aws-starter-ses</artifactId>
         </dependency>
+
+        <!-- AWS STS for credentials (used by Spring Cloud AWS) -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>sts</artifactId>

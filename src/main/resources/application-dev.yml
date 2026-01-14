@@ -9,6 +9,13 @@ spring:
   #   - REDIS_PASSWORD: Password for Redis/ValKey
   cloud:
     aws:
+      # AWS service autoconfiguration - required for Spring Cloud AWS 3.4.2
+      s3:
+        enabled: true
+      sqs:
+        enabled: true
+      ses:
+        enabled: true
       secretsmanager:
         enabled: true
 
