@@ -74,7 +74,27 @@ public class SecurityConfig {
     }
 
     /**
-     * Security configuration for dev, stage, and prod environments.
+     * TEMPORARY: Security configuration for dev with NO authentication.
+     * All endpoints are accessible without JWT tokens.
+     * TODO: Remove this before production!
+     */
+    @Bean
+    @Profile("dev")
+    public SecurityFilterChain devNoAuthSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            )
+            .authorizeHttpRequests(auth -> auth
+                .anyRequest().permitAll()  // Allow ALL requests without authentication
+            );
+
+        return http.build();
+    }
+
+    /**
+     * Security configuration for stage and prod environments.
      * Configures OAuth2 Resource Server with JWT authentication.
      *
      * Public endpoints (no authentication required):
@@ -86,7 +106,7 @@ public class SecurityConfig {
      * - All /admin/** endpoints
      */
     @Bean
-    @Profile({"dev", "stage", "prod"})
+    @Profile({"stage", "prod"})
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
