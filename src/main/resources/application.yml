@@ -32,6 +32,8 @@ spring:
     aws:
       region:
         static: us-east-2
+      credentials:
+        instance-profile: true  # Use IRSA (IAM Roles for Service Accounts)
       secretsmanager:
         enabled: true  # Will be overridden to false in local profile
       sqs:

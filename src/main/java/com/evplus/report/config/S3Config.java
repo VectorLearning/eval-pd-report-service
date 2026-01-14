@@ -5,7 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.InstanceProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -80,8 +80,7 @@ public class S3Config {
     }
 
     /**
-     * Credentials provider: Static for local, DefaultCredentialsProvider for cloud.
-     * DefaultCredentialsProvider supports IRSA (Web Identity Token) and falls back to instance profile.
+     * Credentials provider: Static for local, instance profile for cloud.
      */
     private AwsCredentialsProvider credentialsProvider() {
         // Local environment with static credentials
@@ -91,9 +90,7 @@ public class S3Config {
             );
         }
 
-        // Cloud environment - use DefaultCredentialsProvider which supports IRSA
-        // This includes: Environment variables, System properties, Web Identity Token (IRSA),
-        // Container credentials, Instance profile
-        return DefaultCredentialsProvider.create();
+        // Cloud environment with instance profile (IRSA)
+        return InstanceProfileCredentialsProvider.create();
     }
 }
