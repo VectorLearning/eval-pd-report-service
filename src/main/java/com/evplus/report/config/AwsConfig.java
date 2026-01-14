@@ -10,24 +10,40 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.ses.SesClient;
+import software.amazon.awssdk.services.sqs.SqsAsyncClient;
+import software.amazon.awssdk.services.sts.StsClient;
 
 import java.net.URI;
 
 /**
- * AWS S3 Configuration.
+ * AWS Services Configuration.
  *
- * Configures S3Client and S3Presigner beans with environment-specific settings:
+ * Configures all AWS SDK clients (S3, SQS, SES, STS) with environment-specific settings:
  * - Local: Uses LocalStack with static credentials
- * - Cloud: Uses IRSA (IAM Roles for Service Accounts) with instance profile
+ * - Cloud: Uses DefaultCredentialsProvider which supports IRSA (IAM Roles for Service Accounts)
+ *
+ * DefaultCredentialsProvider chain (in order):
+ * 1. Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+ * 2. System properties (aws.accessKeyId, aws.secretAccessKey)
+ * 3. Web Identity Token (IRSA) - Used in EKS with service account annotations
+ * 4. Container credentials (ECS)
+ * 5. EC2 instance metadata (fallback)
  */
 @Configuration
-public class S3Config {
+public class AwsConfig {
 
     @Value("${spring.cloud.aws.region.static:us-east-2}")
     private String region;
 
     @Value("${spring.cloud.aws.s3.endpoint:}")
     private String s3Endpoint;
+
+    @Value("${spring.cloud.aws.sqs.endpoint:}")
+    private String sqsEndpoint;
+
+    @Value("${spring.cloud.aws.ses.endpoint:}")
+    private String sesEndpoint;
 
     @Value("${spring.cloud.aws.credentials.access-key:}")
     private String accessKey;
@@ -39,7 +55,7 @@ public class S3Config {
      * S3Client bean for S3 operations (upload, download).
      *
      * - Local environment: Points to LocalStack with static credentials
-     * - Cloud environment: Uses instance profile (IRSA) for authentication
+     * - Cloud environment: Uses DefaultCredentialsProvider (IRSA support)
      */
     @Bean
     public S3Client s3Client() {
@@ -77,6 +93,62 @@ public class S3Config {
         }
 
         return builder.build();
+    }
+
+    /**
+     * SqsAsyncClient bean for SQS operations (send, receive messages).
+     * This overrides Spring Cloud AWS autoconfiguration to ensure DefaultCredentialsProvider is used.
+     *
+     * - Local environment: Points to LocalStack with static credentials
+     * - Cloud environment: Uses DefaultCredentialsProvider (IRSA support)
+     */
+    @Bean
+    public SqsAsyncClient sqsAsyncClient() {
+        software.amazon.awssdk.services.sqs.SqsAsyncClientBuilder builder = SqsAsyncClient.builder()
+            .region(Region.of(region))
+            .credentialsProvider(credentialsProvider());
+
+        // Override endpoint for LocalStack in local environment
+        if (sqsEndpoint != null && !sqsEndpoint.isEmpty()) {
+            builder.endpointOverride(URI.create(sqsEndpoint));
+        }
+
+        return builder.build();
+    }
+
+    /**
+     * SesClient bean for email operations (send emails).
+     *
+     * - Local environment: Points to LocalStack with static credentials
+     * - Cloud environment: Uses DefaultCredentialsProvider (IRSA support)
+     */
+    @Bean
+    public SesClient sesClient() {
+        software.amazon.awssdk.services.ses.SesClientBuilder builder = SesClient.builder()
+            .region(Region.of(region))
+            .credentialsProvider(credentialsProvider());
+
+        // Override endpoint for LocalStack in local environment
+        if (sesEndpoint != null && !sesEndpoint.isEmpty()) {
+            builder.endpointOverride(URI.create(sesEndpoint));
+        }
+
+        return builder.build();
+    }
+
+    /**
+     * StsClient bean for AWS Security Token Service operations.
+     * Used for AssumeRole and other temporary credential operations.
+     *
+     * - Local environment: Uses static credentials
+     * - Cloud environment: Uses DefaultCredentialsProvider (IRSA support)
+     */
+    @Bean
+    public StsClient stsClient() {
+        return StsClient.builder()
+            .region(Region.of(region))
+            .credentialsProvider(credentialsProvider())
+            .build();
     }
 
     /**

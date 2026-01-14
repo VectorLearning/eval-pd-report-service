@@ -32,8 +32,8 @@ spring:
     aws:
       region:
         static: us-east-2
-      # credentials:
-      #   instance-profile: true  # Removed - DefaultCredentialsProvider auto-detects IRSA
+      # No credentials config - Spring Cloud AWS 3.x auto-detects IRSA from environment variables
+      # (AWS_ROLE_ARN, AWS_WEB_IDENTITY_TOKEN_FILE)
       secretsmanager:
         enabled: true  # Will be overridden to false in local profile
       sqs:
