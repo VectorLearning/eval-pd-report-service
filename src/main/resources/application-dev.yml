@@ -73,3 +73,7 @@ logging:
     org.springframework.web: INFO
     org.springframework.security: INFO
     org.hibernate.SQL: INFO
+    # Enable DEBUG logging for AWS SDK and Spring Cloud AWS to diagnose SQS issues
+    io.awspring.cloud.sqs: DEBUG
+    software.amazon.awssdk: DEBUG
+    software.amazon.awssdk.request: DEBUG
