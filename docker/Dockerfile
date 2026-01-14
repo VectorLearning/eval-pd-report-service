@@ -23,6 +23,10 @@ FROM amazoncorretto:21-alpine
 # Install dumb-init for proper signal handling
 RUN apk add --no-cache dumb-init
 
+# Install fontconfig and fonts for Apache POI Excel auto-sizing
+# Required by POI's SheetUtil.getDefaultCharWidthAsFloat() for column width calculations
+RUN apk add --no-cache fontconfig ttf-dejavu
+
 # Create non-root user for security
 RUN addgroup -g 1001 appuser && \
     adduser -D -u 1001 -G appuser appuser
