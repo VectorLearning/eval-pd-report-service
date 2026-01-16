@@ -27,11 +27,11 @@ public class SecurityConfig {
      * Uses symmetric key (HMAC-SHA256) to decode and validate JWT tokens.
      * The same key is used by JwtTokenGeneratorController to generate tokens.
      */
-    @Bean
+    /**@Bean
     @Profile("local")
     public JwtDecoder localJwtDecoder() {
         return NimbusJwtDecoder.withSecretKey(LocalJwtSecretKey.getSecretKey()).build();
-    }
+    }**/
 
     /**
      * Security configuration for local development.
@@ -41,7 +41,7 @@ public class SecurityConfig {
      * - Actuator health endpoints
      * - Swagger/OpenAPI endpoints
      */
-    @Bean
+    /**@Bean
     @Profile("local")
     public SecurityFilterChain localSecurityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -71,14 +71,14 @@ public class SecurityConfig {
             );
 
         return http.build();
-    }
+    }**/
 
     /**
      * TEMPORARY: Security configuration for dev with NO authentication.
      * All endpoints are accessible without JWT tokens.
      * TODO: Remove this before production!
      */
-    @Bean
+    /**@Bean
     @Profile("dev")
     public SecurityFilterChain devNoAuthSecurityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -91,7 +91,7 @@ public class SecurityConfig {
             );
 
         return http.build();
-    }
+    }**/
 
     /**
      * Security configuration for stage and prod environments.
@@ -106,7 +106,7 @@ public class SecurityConfig {
      * - All /admin/** endpoints
      */
     @Bean
-    @Profile({"stage", "prod"})
+    @Profile({"dev","stage", "prod", "local"})
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())

@@ -93,9 +93,9 @@ logging:
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
     # Enable DEBUG logging for AWS SDK and Spring Cloud AWS to diagnose SQS issues
-    io.awspring.cloud.sqs: DEBUG
-    software.amazon.awssdk: DEBUG
-    software.amazon.awssdk.request: DEBUG
+    io.awspring.cloud.sqs: INFO
+    software.amazon.awssdk: INFO
+    software.amazon.awssdk.request: INFO
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
 

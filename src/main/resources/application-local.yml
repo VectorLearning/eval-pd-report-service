@@ -51,10 +51,15 @@ spring:
           max-idle: 8
           min-idle: 2
 
-  # Security - Disabled for local development
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+  # Security - OAuth2 Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Use jwk-set-uri directly since OIDC discovery is at non-standard location
+          jwk-set-uri: ${OIDC_JWK_SET_URI:http://localhost:8080/.well-known/openid-configuration/jwks}
+          # Expected issuer claim in JWT tokens
+          issuer-uri: ${OIDC_ISSUER_URI:http://localhost:8080/vector-eval/v2}
 
 # Local AWS Service Configuration
 aws:

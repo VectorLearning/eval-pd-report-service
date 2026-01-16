@@ -60,7 +60,10 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${OIDC_ISSUER_URI:https://placeholder-oidc-provider.com}  # To be configured
+          # Use jwk-set-uri directly since OIDC discovery is at non-standard location
+          jwk-set-uri: ${OIDC_JWK_SET_URI:https://tp3a.goteachpoint.com/.well-known/openid-configuration/jwks}
+          # Expected issuer claim in JWT tokens
+          issuer-uri: ${OIDC_ISSUER_URI:https://tp3a.goteachpoint.com/vector-eval/v2}
 
 # AWS Service Configuration
 aws:
@@ -80,7 +83,3 @@ logging:
     org.springframework.web: INFO
     org.springframework.security: INFO
     org.hibernate.SQL: INFO
-    # Enable DEBUG logging for AWS SDK and Spring Cloud AWS to diagnose SQS issues
-    io.awspring.cloud.sqs: DEBUG
-    software.amazon.awssdk: DEBUG
-    software.amazon.awssdk.request: DEBUG
