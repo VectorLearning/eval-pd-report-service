@@ -48,17 +48,35 @@ spring:
         # endpoint: (empty for AWS S3, override in application-local.yml for LocalStack)
       sqs:
         enabled: true
+        # Global default listener settings - apply to all listeners by default
         listener:
           poll-timeout: 20s
           max-messages-per-poll: 10
           max-concurrent-messages: 10
           queue-not-found-strategy: fail
         # endpoint: (empty for AWS SQS, override in application-local.yml for LocalStack)
+
       ses:
         enabled: true
         # endpoint: (empty for AWS SES, override in application-local.yml for LocalStack)
       secretsmanager:
         enabled: true  # Will be overridden to false in local profile
+
+# SQS Queue-specific listener configurations
+sqs:
+  listeners:
+    # Report Queue Listener - High throughput, longer processing
+    report-queue:
+      poll-timeout: 20s
+      max-messages-per-poll: 10
+      max-concurrent-messages: 10
+      message-visibility: 900  # 15 minutes for report generation
+    # Notification Queue Listener - Lower priority, quick processing
+    notification-queue:
+      poll-timeout: 10s
+      max-messages-per-poll: 5
+      max-concurrent-messages: 5
+      message-visibility: 60  # 1 minute for notifications
 
 # Server Configuration
 server:

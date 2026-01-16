@@ -84,6 +84,13 @@ aws:
     from-address: ${EMAIL_FROM_ADDRESS:noreply@evplus.com}
     enabled: true
 
+# SQS Listener Configuration Overrides for Production
+sqs:
+  listeners:
+    report-queue:
+      max-concurrent-messages: 20  # Higher concurrency in production
+      max-messages-per-poll: 10
+
 # Logging - Minimal logging in production
 logging:
   level:

@@ -72,9 +72,18 @@ public class AsyncReportProcessor {
      * This method is automatically invoked when a message arrives in the SQS queue.
      * It implements idempotency checks to prevent duplicate processing.
      *
+     * Listener configuration is pulled from sqs.listeners.report-queue.* properties in application.yml
+     *
      * @param message SQS message containing the jobId
      */
-    @SqsListener("${aws.sqs.queue-name}")
+    @SqsListener(
+        value = "${aws.sqs.queue-name}",
+        id = "reportQueueListener",
+        pollTimeoutSeconds = "${sqs.listeners.report-queue.poll-timeout:20}",
+        maxConcurrentMessages = "${sqs.listeners.report-queue.max-concurrent-messages:10}",
+        maxMessagesPerPoll = "${sqs.listeners.report-queue.max-messages-per-poll:10}",
+        messageVisibilitySeconds = "${sqs.listeners.report-queue.message-visibility:900}"
+    )
     public void processReportJob(Message<String> message) {
         String jobId = null;
 

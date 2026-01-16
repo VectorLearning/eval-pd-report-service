@@ -84,6 +84,12 @@ aws:
     from-address: ${EMAIL_FROM_ADDRESS:noreply-dev@evplus.com}
     enabled: true
 
+# SQS Listener Configuration Overrides (Optional)
+# sqs:
+#   listeners:
+#     report-queue:
+#       max-concurrent-messages: 5  # Lower concurrency for dev
+
 # Logging
 logging:
   level:
