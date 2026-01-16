@@ -81,5 +81,5 @@ logging:
   level:
     com.evplus.report: INFO
     org.springframework.web: INFO
-    org.springframework.security: INFO
+    org.springframework.security: DEBUG
     org.hibernate.SQL: INFO
