@@ -76,6 +76,14 @@ notification:
   queue:
     name: ev-plus-notifications-local-queue
 
+# Server Configuration
+server:
+  tomcat:
+    accesslog:
+      enabled: true
+      # Human-readable pattern for local development
+      pattern: '%t %h "%r" %s (%D ms) %b bytes'
+
 # Logging - More verbose for local development
 logging:
   level:

@@ -12,10 +12,10 @@ spring:
       naming:
         physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
     show-sql: false
+    open-in-view: false  # Disable to prevent lazy loading issues in view layer
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.MySQLDialect
         jdbc:
           batch_size: 20
         order_inserts: true
@@ -65,6 +65,18 @@ server:
   port: 8080
   servlet:
     context-path: /ev-pd-report/v1
+  # Tomcat Access Logs Configuration
+  tomcat:
+    accesslog:
+      enabled: true
+      directory: logs  # Logs will be written to ./logs directory
+      prefix: access_log
+      suffix: .log
+      file-date-format: .yyyy-MM-dd
+      # Common Log Format (CLF) pattern - will be overridden in specific profiles for JSON
+      pattern: '%h %l %u %t "%r" %s %b %D "%{Referer}i" "%{User-Agent}i"'
+      rotate: true
+      max-days: 30  # Retain logs for 30 days
 
 # Actuator Configuration
 management:
@@ -90,12 +102,12 @@ logging:
     com.evplus.report: INFO
     org.springframework.web: INFO
     org.springframework.security: INFO
-    org.hibernate.SQL: DEBUG
+    org.hibernate.SQL: INFO
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
     # Enable DEBUG logging for AWS SDK and Spring Cloud AWS to diagnose SQS issues
-    io.awspring.cloud.sqs: INFO
-    software.amazon.awssdk: INFO
-    software.amazon.awssdk.request: INFO
+    io.awspring.cloud.sqs: DEBUG
+    software.amazon.awssdk: DEBUG
+    software.amazon.awssdk.request: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
 
