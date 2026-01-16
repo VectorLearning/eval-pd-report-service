@@ -85,11 +85,10 @@ aws:
     enabled: true
 
 # SQS Listener Configuration Overrides for Production
-sqs:
-  listeners:
-    report-queue:
-      max-concurrent-messages: 20  # Higher concurrency in production
-      max-messages-per-poll: 10
+#sqs:
+#  listeners:
+#    report-queue:
+#      max-concurrent-messages: 20  # Higher concurrency in production
 
 # Logging - Minimal logging in production
 logging:

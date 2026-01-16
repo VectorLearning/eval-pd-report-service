@@ -67,16 +67,10 @@ sqs:
   listeners:
     # Report Queue Listener - High throughput, longer processing
     report-queue:
-      poll-timeout: 20s
+      poll-timeout: 20
       max-messages-per-poll: 10
       max-concurrent-messages: 10
       message-visibility: 900  # 15 minutes for report generation
-    # Notification Queue Listener - Lower priority, quick processing
-    notification-queue:
-      poll-timeout: 10s
-      max-messages-per-poll: 5
-      max-concurrent-messages: 5
-      message-visibility: 60  # 1 minute for notifications
 
 # Server Configuration
 server:
