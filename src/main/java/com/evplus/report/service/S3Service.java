@@ -71,6 +71,7 @@ public class S3Service {
                 .key(s3Key)
                 .contentType(CONTENT_TYPE)
                 .contentLength((long) reportData.length)
+                .serverSideEncryption(ServerSideEncryption.AES256)
                 .build();
 
             s3Client.putObject(putRequest, RequestBody.fromBytes(reportData));
