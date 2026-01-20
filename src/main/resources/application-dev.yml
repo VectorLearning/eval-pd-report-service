@@ -45,7 +45,7 @@ spring:
           max-idle: 10
           min-idle: 5
 
-  # Security - OAuth2 Configuration. Here Env specific settings can override these.
+  # Security - OAuth2 Configuration. Here Env (same on stage & prod too)specific settings can override these.
 #  security:
 #    oauth2:
 #      resourceserver:

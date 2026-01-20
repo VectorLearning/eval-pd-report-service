@@ -55,16 +55,6 @@ spring:
           max-idle: 25
           min-idle: 15
 
-  # Security - OAuth2 Configuration
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          # Use jwk-set-uri directly since OIDC discovery is at non-standard location
-          jwk-set-uri: ${OIDC_JWK_SET_URI:https://tp1.goteachpoint.com/.well-known/openid-configuration/jwks}
-          # Expected issuer claim in JWT tokens
-          issuer-uri: ${OIDC_ISSUER_URI:https://tp1.goteachpoint.com/vector-eval/v2}
-
 # Server Configuration
 server:
   tomcat:
@@ -73,16 +63,6 @@ server:
       # JSON format for CloudWatch/log aggregation - structured access logs
       pattern: '{"timestamp":"%{yyyy-MM-dd''T''HH:mm:ss.SSSXXX}t","remoteHost":"%h","method":"%m","uri":"%U","query":"%q","status":%s,"bytes":%b,"duration":%D,"referer":"%{Referer}i","userAgent":"%{User-Agent}i","sessionId":"%S"}'
       #max-days: 7  # Retain logs for 7 days in production (assuming centralized logging)
-
-# AWS Service Configuration
-aws:
-  s3:
-    bucket-name: ${S3_BUCKET:ev-plus-reports-prod}
-  sqs:
-    queue-name: ${SQS_QUEUE_URL:ev-plus-reporting-prod-queue}
-  email:
-    from-address: ${EMAIL_FROM_ADDRESS:noreply@evplus.com}
-    enabled: true
 
 # SQS Listener Configuration Overrides for Production
 #sqs:
