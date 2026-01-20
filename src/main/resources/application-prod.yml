@@ -77,9 +77,9 @@ server:
 # AWS Service Configuration
 aws:
   s3:
-    bucket-name: ${S3_BUCKET_NAME:ev-plus-reports-prod}
+    bucket-name: ${S3_BUCKET:ev-plus-reports-prod}
   sqs:
-    queue-name: ${SQS_QUEUE_NAME:ev-plus-reporting-prod-queue}
+    queue-name: ${SQS_QUEUE_URL:ev-plus-reporting-prod-queue}
   email:
     from-address: ${EMAIL_FROM_ADDRESS:noreply@evplus.com}
     enabled: true

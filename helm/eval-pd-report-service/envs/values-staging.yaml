@@ -9,8 +9,8 @@ fullnameOverride: staging-eval-pd-report
 env:
   SQS_QUEUE_NAME: ev-plus-reporting-stage-queue
   EMAIL_FROM_ADDRESS: noreply@evplus.com
-  OIDC_ISSUER_URI: https://stage-oidc.evplus.com
-  S3_BUCKET: ev-plus-reports-stage
+  OIDC_ISSUER_URI: https://tp3a.goteachpoint.com/vector-eval/v2
+  S3_BUCKET: files-tp7-test
   SPRING_PROFILES_ACTIVE: stage
   SQS_QUEUE_URL: https://sqs.us-east-2.amazonaws.com/760612481786/eval-pd-stage-report-service-queue 
   NOTIFICATION_QUEUE_NAME: https://sqs.us-east-2.amazonaws.com/370246022780/tp7_Notifications.fifo

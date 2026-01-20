@@ -107,6 +107,12 @@
             <artifactId>spring-cloud-aws-starter</artifactId>
         </dependency>
 
+        <!-- AWS STS for credentials (used by Spring Cloud AWS) -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sts</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>io.awspring.cloud</groupId>
             <artifactId>spring-cloud-aws-starter-secrets-manager</artifactId>
@@ -127,12 +133,6 @@
         <dependency>
             <groupId>io.awspring.cloud</groupId>
             <artifactId>spring-cloud-aws-starter-ses</artifactId>
-        </dependency>
-
-        <!-- AWS STS for credentials (used by Spring Cloud AWS) -->
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>sts</artifactId>
         </dependency>
 
         <!-- Database -->
