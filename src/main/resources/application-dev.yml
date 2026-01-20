@@ -7,17 +7,7 @@ spring:
   #   - WRITE_DB_PASSWORD: Password for write database
   #   - READ_DB_PASSWORD: Password for read replica database
   #   - REDIS_PASSWORD: Password for Redis/ValKey
-  cloud:
-    aws:
-      # AWS service autoconfiguration - required for Spring Cloud AWS 3.4.2
-      s3:
-        enabled: true
-      sqs:
-        enabled: true
-      ses:
-        enabled: true
-      secretsmanager:
-        enabled: true
+
 
   # Write Database Configuration (Primary/Master)
   datasource:
@@ -55,15 +45,15 @@ spring:
           max-idle: 10
           min-idle: 5
 
-  # Security - OAuth2 Configuration
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          # Use jwk-set-uri directly since OIDC discovery is at non-standard location
-          jwk-set-uri: ${OIDC_JWK_SET_URI:https://tp3a.goteachpoint.com/.well-known/openid-configuration/jwks}
-          # Expected issuer claim in JWT tokens
-          issuer-uri: ${OIDC_ISSUER_URI:https://tp3a.goteachpoint.com/vector-eval/v2}
+  # Security - OAuth2 Configuration. Here Env specific settings can override these.
+#  security:
+#    oauth2:
+#      resourceserver:
+#        jwt:
+#          # Use jwk-set-uri directly since OIDC discovery is at non-standard location
+#          jwk-set-uri: ${OIDC_JWK_SET_URI:https://tp3a.goteachpoint.com/.well-known/openid-configuration/jwks}
+#          # Expected issuer claim in JWT tokens
+#          issuer-uri: ${OIDC_ISSUER_URI:https://tp3a.goteachpoint.com/vector-eval/v2}
 
 # Server Configuration
 server:
@@ -73,18 +63,18 @@ server:
       # JSON format for CloudWatch/log aggregation - structured access logs
       pattern: '{"timestamp":"%{yyyy-MM-dd''T''HH:mm:ss.SSSXXX}t","remoteHost":"%h","method":"%m","uri":"%U","query":"%q","status":%s,"bytes":%b,"duration":%D,"referer":"%{Referer}i","userAgent":"%{User-Agent}i","sessionId":"%S"}'
 
-# AWS Service Configuration
-aws:
-  s3:
-    bucket-name: ${S3_BUCKET:ev-plus-reports-dev}
-  sqs:
-    # Use full queue URL to avoid auto-creation attempts
-    queue-name: ${SQS_QUEUE_URL:https://sqs.us-east-2.amazonaws.com/760612481786/eval-pd-develop-report-service-queue}
-  email:
-    from-address: ${EMAIL_FROM_ADDRESS:noreply-dev@evplus.com}
-    enabled: true
+# Env specific AWS Service Configuration
+#aws:
+#  s3:
+#    bucket-name: ${S3_BUCKET:ev-plus-reports-dev}
+#  sqs:
+#    # Use full queue URL to avoid auto-creation attempts
+#    queue-name: ${SQS_QUEUE_URL:https://sqs.us-east-2.amazonaws.com/760612481786/eval-pd-develop-report-service-queue}
+#  email:
+#    from-address: ${EMAIL_FROM_ADDRESS:noreply-dev@evplus.com}
+#    enabled: true
 
-# SQS Listener Configuration Overrides (Optional)
+# EnvS specific SQS Listener Configuration Overrides (Optional)
 # sqs:
 #   listeners:
 #     report-queue:

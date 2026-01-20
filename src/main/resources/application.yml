@@ -5,6 +5,16 @@ spring:
   application:
     name: eval-pd-report-service
 
+  # Security - OAuth2 Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Use jwk-set-uri directly since OIDC discovery is at non-standard location
+          jwk-set-uri: ${OIDC_JWK_SET_URI:https://tp3a.goteachpoint.com/.well-known/openid-configuration/jwks}
+          # Expected issuer claim in JWT tokens
+          issuer-uri: ${OIDC_ISSUER_URI:https://tp3a.goteachpoint.com/vector-eval/v2}
+
   # JPA/Hibernate Configuration
   jpa:
     hibernate:
@@ -43,11 +53,11 @@ spring:
         access-key: ${AWS_ACCESS_KEY_ID:}
         secret-key: ${AWS_SECRET_ACCESS_KEY:}
       s3:
-        enabled: true
+        # enabled: true #Not needed, It is true by default. 
         # path-style-access-enabled: false (default for AWS S3)
         # endpoint: (empty for AWS S3, override in application-local.yml for LocalStack)
       sqs:
-        enabled: true
+        # enabled: true #Not needed, It is true by default. 
         # Global default listener settings - apply to all listeners by default
         listener:
           poll-timeout: 20s
@@ -55,12 +65,21 @@ spring:
           max-concurrent-messages: 10
           queue-not-found-strategy: fail
         # endpoint: (empty for AWS SQS, override in application-local.yml for LocalStack)
-
       ses:
-        enabled: true
+        enabled: false # Enable in specific profiles if email sending is needed.
         # endpoint: (empty for AWS SES, override in application-local.yml for LocalStack)
       secretsmanager:
-        enabled: true  # Will be overridden to false in local profile
+        # enabled: true  # Will be overridden to false in local profile
+# AWS Service Configuration
+aws:
+  s3:
+    bucket-name: ${S3_BUCKET:ev-plus-reports-dev}
+  sqs:
+    # Use full queue URL to avoid auto-creation attempts
+    queue-name: ${SQS_QUEUE_URL:https://sqs.us-east-2.amazonaws.com/760612481786/eval-pd-develop-report-service-queue}
+  email:
+    from-address: ${EMAIL_FROM_ADDRESS:noreply-dev@evplus.com}
+    enabled: true
 
 # SQS Queue-specific listener configurations
 sqs:

@@ -8,18 +8,20 @@ import com.evplus.report.repository.NotificationQueueRepository;
 import com.evplus.report.security.UserPrincipal;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.awspring.cloud.sqs.operations.SqsTemplate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import software.amazon.awssdk.services.sqs.SqsAsyncClient;
+import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Production implementation of NotificationQueueService.
@@ -40,7 +42,7 @@ public class NotificationQueueServiceImpl implements NotificationQueueService {
 
     private final NotificationEventRepository notificationEventRepository;
     private final NotificationQueueRepository notificationQueueRepository;
-    private final SqsTemplate sqsTemplate;
+    private final SqsAsyncClient sqsAsyncClient;
     private final ObjectMapper objectMapper;
 
     @Value("${notification.queue.name}")
@@ -145,6 +147,7 @@ public class NotificationQueueServiceImpl implements NotificationQueueService {
 
     /**
      * Send SQS message to notification processor queue.
+     * Uses AWS SDK directly to avoid cross-account attribute resolution issues.
      *
      * @param queue The saved notification queue record
      * @param event The saved notification event
@@ -161,11 +164,25 @@ public class NotificationQueueServiceImpl implements NotificationQueueService {
 
         String messageJson = objectMapper.writeValueAsString(sqsMessage);
 
-        // Send to notification processor queue
-        sqsTemplate.send(notificationQueueName, messageJson);
+        // Send to notification processor queue using AWS SDK directly
+        // This bypasses Spring Cloud AWS SqsTemplate attribute resolution which fails for cross-account queues
+        SendMessageRequest request = SendMessageRequest.builder()
+            .queueUrl(notificationQueueName)
+            .messageBody(messageJson)
+            .messageGroupId("report-notifications")  // Required for FIFO queues
+            .messageDeduplicationId(UUID.randomUUID().toString())  // Unique ID for deduplication
+            .build();
 
-        log.info("Sent SQS notification message: queue={}, messageId={}, queueId={}",
-            notificationQueueName, queue.getId(), queue.getId());
+        sqsAsyncClient.sendMessage(request)
+            .whenComplete((result, error) -> {
+                if (error != null) {
+                    log.error("Failed to send SQS notification: queue={}, queueId={}",
+                        notificationQueueName, queue.getId(), error);
+                } else {
+                    log.info("Sent SQS notification message: queue={}, messageId={}, queueId={}",
+                        notificationQueueName, result.messageId(), queue.getId());
+                }
+            });
     }
 
     /**
