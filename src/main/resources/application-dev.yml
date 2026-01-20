@@ -76,7 +76,7 @@ server:
 # AWS Service Configuration
 aws:
   s3:
-    bucket-name: ${S3_BUCKET_NAME:ev-plus-reports-dev}
+    bucket-name: ${S3_BUCKET:ev-plus-reports-dev}
   sqs:
     # Use full queue URL to avoid auto-creation attempts
     queue-name: ${SQS_QUEUE_URL:https://sqs.us-east-2.amazonaws.com/760612481786/eval-pd-develop-report-service-queue}
