@@ -10,7 +10,7 @@ env:
   SQS_QUEUE_NAME: eval-pd-develop-report-service-queue
   EMAIL_FROM_ADDRESS: noreply@evplus.com
   OIDC_ISSUER_URI: https://tp3a.goteachpoint.com/vector-eval/v2
-  S3_BUCKET: arn:aws:s3:us-east-2:370246022780:files-tp3a-test
+  S3_BUCKET: arn:aws:s3:::files-tp3a-test
   SPRING_PROFILES_ACTIVE: dev
   SQS_QUEUE_URL: https://sqs.us-east-2.amazonaws.com/760612481786/eval-pd-develop-report-service-queue
   NOTIFICATION_QUEUE_NAME: https://sqs.us-east-2.amazonaws.com/370246022780/tp3a_Notifications.fifo
