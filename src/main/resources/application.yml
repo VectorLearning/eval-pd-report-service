@@ -95,7 +95,7 @@ sqs:
 server:
   port: 8080
   servlet:
-    context-path: /api/ev-pd-report/v1
+    context-path: /ev-pd-report/v1
   # Tomcat Access Logs Configuration
   tomcat:
     accesslog:

@@ -11,7 +11,7 @@ spec:
   http:
   - match:
     - uri:
-        prefix: /api/ev-pd-report/v1
+        prefix: /ev-pd-report/*
       headers:
         host:
           exact: {{ .Values.istioHostDomain }}
