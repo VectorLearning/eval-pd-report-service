@@ -207,15 +207,28 @@ public class ActivityByUserReportHandler implements ReportHandler {
 
         try {
             // Resolve special user selection values (-2, -3) to actual user IDs
+            // and apply user group filters if provided.
             // This is done here (not at controller level) to avoid storing thousands
             // of user IDs in the job queue/database
-            if (userSelectionService.containsSpecialSelection(activityCriteria.getUserIds())) {
-                log.info("Resolving special user selection: {}",
-                        userSelectionService.getSelectionDescription(activityCriteria.getUserIds()));
+            boolean hasSpecialSelection = userSelectionService.containsSpecialSelection(activityCriteria.getUserIds());
+            boolean hasUserGroupFilters = activityCriteria.getUserGroupFilters() != null
+                    && !activityCriteria.getUserGroupFilters().isEmpty()
+                    && activityCriteria.getUserGroupFilters().stream()
+                            .anyMatch(filter -> filter != null && !filter.isEmpty());
 
-                List<Integer> resolvedUserIds = userSelectionService.resolveUserIds(
+            if (hasSpecialSelection || hasUserGroupFilters) {
+                String filterDescription = hasUserGroupFilters
+                        ? activityCriteria.getUserGroupFilters().size() + " filter group(s)"
+                        : "None";
+                log.info("Resolving user selection: {}, User group filters: {}",
+                        userSelectionService.getSelectionDescription(activityCriteria.getUserIds()),
+                        filterDescription);
+
+                List<Integer> resolvedUserIds = userSelectionService.resolveUserIdsWithFilter(
                         activityCriteria.getDistrictId(),
-                        activityCriteria.getUserIds()
+                        activityCriteria.getRequestingUserId(),
+                        activityCriteria.getUserIds(),
+                        activityCriteria.getUserGroupFilters()
                 );
 
                 log.info("Resolved to {} users", resolvedUserIds.size());

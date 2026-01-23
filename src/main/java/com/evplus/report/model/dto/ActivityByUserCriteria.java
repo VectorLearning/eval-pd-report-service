@@ -32,8 +32,19 @@ public class ActivityByUserCriteria extends ReportCriteria {
     private Integer districtId;
 
     /**
+     * ID of the user making the report request (optional, needed for MY_EVALUEES resolution).
+     * When userIds contains -3 (MY_EVALUEES), this field is used to query permissions
+     * and determine which users the requesting user can view.
+     * This is set from the root-level userId in the ReportRequest.
+     */
+    private Integer requestingUserId;
+
+    /**
      * List of user IDs to include in the report (required).
      * Empty list will result in no data.
+     * Special values:
+     * - -2: ALL_USERS_DISTRICT (all active users in the district)
+     * - -3: MY_EVALUEES (users the requesting user has permission to view)
      */
     private List<Integer> userIds;
 
@@ -91,6 +102,20 @@ public class ActivityByUserCriteria extends ReportCriteria {
      * Default: false
      */
     private boolean showUsersWithoutData = false;
+
+    /**
+     * User group filters for filtering users by organizational properties (optional).
+     * Examples: schools, jobs, regions, departments, teams, etc.
+     * When specified, only users matching these criteria will be included.
+     *
+     * Multiple filter groups can be specified:
+     * - All filters within a single UserGroupFilter are AND-ed together
+     * - Multiple UserGroupFilter objects are OR-ed together
+     *
+     * Example: "Users in (School 1 AND Job 5) OR (Region 10 AND Job 6)"
+     * Can be combined with userIds selection (including MY_EVALUEES).
+     */
+    private List<UserGroupFilter> userGroupFilters;
 
     @Override
     public ReportType getReportType() {

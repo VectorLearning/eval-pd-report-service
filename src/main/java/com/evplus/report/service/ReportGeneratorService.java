@@ -101,6 +101,12 @@ public class ReportGeneratorService {
         try {
             LocalDateTime startTime = LocalDateTime.now();
 
+            // Set requesting user ID in criteria if it's ActivityByUserCriteria
+            if (request.getCriteria() instanceof com.evplus.report.model.dto.ActivityByUserCriteria) {
+                ((com.evplus.report.model.dto.ActivityByUserCriteria) request.getCriteria())
+                    .setRequestingUserId(userId);
+            }
+
             // Generate the report
             ReportData reportData = handler.generateReport(request.getCriteria());
 
@@ -145,6 +151,12 @@ public class ReportGeneratorService {
         try {
             // Generate unique job ID
             String jobId = UUID.randomUUID().toString();
+
+            // Set requesting user ID in criteria if it's ActivityByUserCriteria
+            if (request.getCriteria() instanceof com.evplus.report.model.dto.ActivityByUserCriteria) {
+                ((com.evplus.report.model.dto.ActivityByUserCriteria) request.getCriteria())
+                    .setRequestingUserId(userId);
+            }
 
             // Serialize criteria to JSON
             String criteriaJson = objectMapper.writeValueAsString(request.getCriteria());
