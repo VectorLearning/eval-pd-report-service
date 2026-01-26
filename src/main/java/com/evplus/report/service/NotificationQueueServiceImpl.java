@@ -163,6 +163,7 @@ public class NotificationQueueServiceImpl implements NotificationQueueService {
         sqsMessage.put("districtId", reportJob.getDistrictId());
         sqsMessage.put("level", notificationLevel);
         sqsMessage.put("relationship", queue.getRelationship());
+        sqsMessage.put("sqsQueued", queue.getSqsQueued());
 
         String messageJson = objectMapper.writeValueAsString(sqsMessage);
 
