@@ -141,7 +141,8 @@ public class NotificationQueueServiceImpl implements NotificationQueueService {
         queue.setLevel(notificationLevel); // "IMMEDIATELY" for urgent notifications
         queue.setNotificationEventId(event.getId());
         queue.setSqsQueued(true); // Indicates message will be sent to SQS
-
+        queue.setRelationship("REPORT_REQUESTOR");
+        
         return queue;
     }
 
@@ -157,10 +158,11 @@ public class NotificationQueueServiceImpl implements NotificationQueueService {
                                     ReportJob reportJob) throws JsonProcessingException {
         // Build SQS message body
         Map<String, Object> sqsMessage = new HashMap<>();
-        sqsMessage.put("notificationQueueId", queue.getId());
+        sqsMessage.put("id", queue.getId());
         sqsMessage.put("notificationEventId", event.getId());
         sqsMessage.put("districtId", reportJob.getDistrictId());
         sqsMessage.put("level", notificationLevel);
+        sqsMessage.put("relationship", queue.getRelationship());
 
         String messageJson = objectMapper.writeValueAsString(sqsMessage);
 
