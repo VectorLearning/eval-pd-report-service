@@ -10,7 +10,6 @@ import com.evplus.report.model.entity.ReportJob;
 import com.evplus.report.model.enums.ReportStatus;
 import com.evplus.report.repository.ReportJobRepository;
 import com.evplus.report.security.UserPrincipal;
-import com.evplus.report.service.DownloadTokenService;
 import com.evplus.report.service.ReportGeneratorService;
 import com.evplus.report.service.S3Service;
 import com.evplus.report.service.UserSelectionService;
@@ -51,7 +50,6 @@ public class ReportController {
     private final ReportJobRepository reportJobRepository;
     private final S3Service s3Service;
     private final UserSelectionService userSelectionService;
-    private final DownloadTokenService downloadTokenService;
 
     /**
      * Generate a new report.
@@ -274,9 +272,7 @@ public class ReportController {
         }
 
         // 4. Extract S3 key from URL
-        // s3Url now contains redirect URL (e.g., https://service.com/r/token)
-        // Extract token and lookup presigned URL to get S3 key
-        String s3Key = extractS3KeyFromRedirectUrl(job.getS3Url());
+        String s3Key = extractS3Key(job.getS3Url());
         log.debug("Extracted S3 key: {}", s3Key);
 
         // 5. Download from S3
@@ -314,38 +310,6 @@ public class ReportController {
             UserPrincipal userPrincipal) {
         // This method is deprecated and no longer used
         // User resolution now happens in ActivityByUserReportHandler
-    }
-
-    /**
-     * Extract S3 key from redirect URL.
-     * Handles both new redirect URLs and legacy presigned URLs.
-     *
-     * @param url redirect URL (e.g., https://service.com/r/token) or legacy presigned URL
-     * @return S3 object key (e.g., "reports/123/uuid/file.xlsx")
-     */
-    private String extractS3KeyFromRedirectUrl(String url) {
-        if (url == null) {
-            throw new IllegalStateException("URL is null");
-        }
-
-        // Check if it's a redirect URL (contains "/r/")
-        if (url.contains("/r/")) {
-            // Extract token from redirect URL
-            // Format: https://service.com/r/abc123xyz
-            String token = url.substring(url.lastIndexOf("/r/") + 3);
-
-            // Look up presigned URL from token
-            String presignedUrl = downloadTokenService.getPresignedUrl(token)
-                .orElseThrow(() -> new IllegalStateException(
-                    "Download token not found or expired: " + token
-                ));
-
-            // Extract S3 key from presigned URL
-            return extractS3Key(presignedUrl);
-        }
-
-        // Legacy: If it's a presigned URL or direct key, use old method
-        return extractS3Key(url);
     }
 
     /**

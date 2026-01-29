@@ -7,7 +7,6 @@ nameOverride: staging-eval-pd-report
 fullnameOverride: staging-eval-pd-report
 
 env:
-  APP_BASE_URL: https://evplus-api.staging.develop.vsp-nonprod.com
   SQS_QUEUE_NAME: ev-plus-reporting-stage-queue
   EMAIL_FROM_ADDRESS: noreply@evplus.com
   OIDC_ISSUER_URI: https://tp3a.goteachpoint.com/vector-eval/v2

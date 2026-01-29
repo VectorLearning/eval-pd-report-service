@@ -7,7 +7,6 @@ nameOverride: develop-eval-pd-report
 fullnameOverride: develop-eval-pd-report
 
 env:
-  APP_BASE_URL: https://evplus-api.develop.us-east-2.vsp-nonprod.com
   SQS_QUEUE_NAME: eval-pd-develop-report-service-queue
   EMAIL_FROM_ADDRESS: noreply@evplus.com
   OIDC_ISSUER_URI: https://tp3a.goteachpoint.com/vector-eval/v2

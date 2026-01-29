@@ -153,10 +153,6 @@ springdoc:
     tagsSorter: alpha
   show-actuator: false
 
-# Application Configuration
-app:
-  base-url: ${APP_BASE_URL:http://localhost:8080}
-
 # Notification Queue Configuration
 notification:
   queue:
