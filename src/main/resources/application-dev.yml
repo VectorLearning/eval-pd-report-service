@@ -1,12 +1,17 @@
 # Development Environment Configuration
 
 spring:
+  # Import configuration from AWS Secrets Manager
+  config:
+    import: aws-secretsmanager:eval-pd-report-service/develop/service-credentials
+
   # AWS Secrets Manager Configuration
-  # Only passwords are loaded from Secrets Manager: /secret/eval-pd-report-service/dev
-  # Required secrets:
+  # Required secrets in AWS Secrets Manager:
   #   - WRITE_DB_PASSWORD: Password for write database
   #   - READ_DB_PASSWORD: Password for read replica database
   #   - REDIS_PASSWORD: Password for Redis/ValKey
+  #   - app.download-token.jwt.private-key: RSA private key for JWT signing (PEM format)
+  #   - app.download-token.jwt.public-key: RSA public key for JWT verification (PEM format)
   cloud:
     aws:
       secretsmanager:
