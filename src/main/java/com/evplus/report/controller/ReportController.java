@@ -39,7 +39,7 @@ import java.util.List;
  * - Generating reports (sync or async)
  * - Checking report status
  * - Listing user's reports
- */
+ **/
 @RestController
 @RequestMapping("/reports")
 @RequiredArgsConstructor
