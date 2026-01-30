@@ -165,13 +165,13 @@ app:
   base-url: ${APP_BASE_URL:http://localhost:8080}
 
   # Download Token JWT Configuration
-  # Private/Public keys are loaded from AWS Secrets Manager in dev/stage/prod
-  # For local development, keys are hardcoded in application-local.yml
+  # Private/Public keys are loaded from AWS Secrets Manager in dev/stage/prod as:
+  #   - app.download-token.jwt.private-key
+  #   - app.download-token.jwt.public-key
+  # For local development, keys are defined in application-local.yml
   download-token:
     jwt:
-      private-key: ${app.download-token.jwt.private-key}  # Loaded from Secrets Manager
-      public-key: ${app.download-token.jwt.public-key}    # Loaded from Secrets Manager
-      expiration-days: 7                                   # Token expiration (7 days default)
+      expiration-days: 7  # Token expiration (7 days default)
 
 # CORS Configuration
 # Default CORS settings - Override in environment-specific profiles

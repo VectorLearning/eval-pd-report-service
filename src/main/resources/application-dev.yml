@@ -9,7 +9,7 @@ spring:
   #   - REDIS_PASSWORD: Password for Redis/ValKey
   cloud:
     aws:
-      secretsmanager:                                         
+      secretsmanager:
         name: eval-pd-report-service/develop/service-credentials
 
 
