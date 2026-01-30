@@ -60,6 +60,7 @@ public class AsyncReportProcessor {
     private final ObjectMapper objectMapper;
     private final NotificationQueueService notificationQueueService;
     private final UserRepository userRepository;
+    private final DownloadTokenService downloadTokenService;
 
     @Value("${aws.sqs.queue-name}")
     private String queueName;
@@ -197,19 +198,29 @@ public class AsyncReportProcessor {
             String presignedUrl = s3Service.generatePresignedUrl(s3Key, PRESIGNED_URL_EXPIRATION);
             log.info("Generated presigned URL for job {}: valid for {} days", jobId, PRESIGNED_URL_EXPIRATION.toDays());
 
-            // Step 9: Update job status to COMPLETED
+            // Step 9: Generate download token and email-safe redirect URL
+            String downloadUrl = downloadTokenService.generateDownloadToken(
+                presignedUrl,
+                jobId,
+                job.getUserId(),
+                job.getDistrictId(),
+                PRESIGNED_URL_EXPIRATION
+            );
+            log.info("Generated download redirect URL for job {}: downloadUrl={}", jobId, downloadUrl);
+
+            // Step 10: Update job status to COMPLETED
             job.setStatus(ReportStatus.COMPLETED);
             job.setCompletedDate(LocalDateTime.now());
-            job.setS3Url(presignedUrl);
+            job.setS3Url(downloadUrl);  // Store redirect URL (not presigned URL)
             job.setFilename(filename);
             job.setErrorMessage(null);  // Clear any previous error from failed attempts
             reportJobRepository.save(job);
 
-            log.info("Successfully completed job {}: s3Key={}, presignedUrl={}, filename={}",
-                jobId, s3Key, maskUrl(presignedUrl), filename);
+            log.info("Successfully completed job {}: s3Key={}, downloadUrl={}, filename={}",
+                jobId, s3Key, downloadUrl, filename);
 
-            // Step 10: Queue notification for user
-            queueNotificationForUser(job, presignedUrl);
+            // Step 11: Queue notification for user with download URL
+            queueNotificationForUser(job, downloadUrl);
 
         } catch (Exception e) {
             log.error("Error processing job {}: {}", jobId, e.getMessage(), e);

@@ -57,9 +57,9 @@ spring:
       resourceserver:
         jwt:
           # Use jwk-set-uri directly since OIDC discovery is at non-standard location
-          jwk-set-uri: ${OIDC_JWK_SET_URI:http://localhost:8080/.well-known/openid-configuration/jwks}
+          jwk-set-uri: ${OIDC_JWK_SET_URI:https://tp3a.goteachpoint.com/.well-known/openid-configuration/jwks}
           # Expected issuer claim in JWT tokens
-          issuer-uri: ${OIDC_ISSUER_URI:http://localhost:8080/vector-eval/v2}
+          issuer-uri: ${OIDC_ISSUER_URI:http://tp3a.goteachpoint.com/vector-eval/v2}
 
 # Local AWS Service Configuration
 aws:
@@ -75,6 +75,56 @@ aws:
 notification:
   queue:
     name: ev-plus-notifications-local-queue
+
+# Application Configuration
+app:
+  base-url: http://localhost:8080
+
+  # Download Token JWT Configuration (Local Development Keys)
+  # IMPORTANT: These are TEST KEYS for local development only!
+  # Production keys are stored in AWS Secrets Manager
+  download-token:
+    jwt:
+      expiration-days: 7
+      private-key: |
+        -----BEGIN PRIVATE KEY-----
+        MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCxp4oIEiDyQOPK
+        v6RLJ1Lcvo9Hb8C5I6DiEKd5qMHuWGH8ALV8f11eb4lvO3682XRVx+Nkab3YPyHs
+        c7zoGKVkm3r20jnTxoLhcIq9bvwjCc5LVUHjvfKzeGqjAF9Sl6QoMwvUBRzuvZpH
+        4rVBwXLemwOu+xKNerZEKvRS6ZdJd7oVp8oE5npqusHLAq+op0TYX4U+EnLhgVXx
+        VL/gZpmAVqs1QV2nTc3thHCJavmkMssp+OB8dF5N7LFu+gLvN7QZtobhhYTONcJC
+        dF/6q9IkvLS0H1bTiLZ0yq7R3PgFGNRAjFd2C6Glw5LkUP2XukEUj0hY1EMC30pE
+        7Z5kjZXTAgMBAAECggEAaBh0b9A3j9tn3kg2u3aaPhBGoiQgOBthTLVXfJjesYsG
+        NwQvU3jJu+j9Dbk9xOhiG1VZr1+qRsiPVx5mBVVTrETSY0fBbI635+Lq2J7sjJdV
+        UpztU8XcLT8UtNgmAp4qKQfoGV65mkZs3UxAyvvQFBGesewZ7d6GaCEHMoH/DKNp
+        zqwpAOg6qpsrJgl5JQXeXCSpumyoAKj+zBxEjV17P3WbCQDdzt61Yjj50bSqvkUs
+        lCxY7HDsqVbGvos9rMopoEfE8cpwnKiqaKEEnH13Sp9LdyVRJ4ZqW3y3fyCd6Eoq
+        HD9y5iv6Ra3QNSrq9x/73CUYitrrLYjFoHgO862b6QKBgQDcasTKbrBAtcfzZU+R
+        ChExM+XJtaSqkTxB+1Uh2WotV8Pn+ihzkff9JPLvUa8BlIwsndIXrNZEgindlYgT
+        9ri5aJhuZj792NmT97vSLZAJrPqZXHQTGi8ECdRnuEn5To8TrdIlOj6dTzm4ODF4
+        Y+iQ3xIfVDuc4lHfPOI2ezxUzQKBgQDOVYJX0vLdBFqqSJOIVVrPHhXlYL9PkxhD
+        RAJmQ7exizLIJYuSmcgarpfkFzEdxGnSaRRe9IY4gANwSjPEWE0f3Hy0evx8hlPp
+        9wwCmENBwC+OhDqy5UCJ04FmoHTjjDZI+u10M3mn+d+ozOouSoMd/Dek5SJP0dkf
+        KJDYpnSVHwKBgBRQYsKlYOkV18++zo53dw4p0ku8yehOaldKapYsC3USWaPPklrU
+        YR6bgSg9RvvGTQTvpqU38Kdvt5wMY/YzDuNHmITUN4n9qk/QzSaZvGSn5JCtzKTW
+        DO86WLEWcvrfGqCdrHhx3cNxwcgQpb6KtqxjYrAwey4CTbldSxvqT60hAoGAWe00
+        sLg0txUVus+E1U92E3zmSCFhX/oZAgAbF5z963hieo66hPtXFiHv+y4Mbw/SmyzG
+        /xeNhARu+zqr0zA09OTwyOwtLMySuA6/AkaAUaDEWVXSC3QVK7yt0h+ushnC8w3B
+        /foNVKN30ib1DZXWDXSGf+yJhsZL3eOdNX9eojsCgYEAtGPJ/CFKN3OLpkV0+1l2
+        Ms5dZk5WP7/X5xv8qg2qWWgmtjb9VUA0nHflKKugdSPDjRImUmPqiwQpBUWRkXqp
+        LA/KXx0dEO+ckb9wpRDU0j9xaN7L1zn19skvnaVn5yPPrDh2cd4H/RM9PFAl8HYV
+        o0dfJeO5Wkb3CXlhOL3n1Ko=
+        -----END PRIVATE KEY-----
+      public-key: |
+        -----BEGIN PUBLIC KEY-----
+        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsaeKCBIg8kDjyr+kSydS
+        3L6PR2/AuSOg4hCneajB7lhh/AC1fH9dXm+Jbzt+vNl0VcfjZGm92D8h7HO86Bil
+        ZJt69tI508aC4XCKvW78IwnOS1VB473ys3hqowBfUpekKDML1AUc7r2aR+K1QcFy
+        3psDrvsSjXq2RCr0UumXSXe6FafKBOZ6arrBywKvqKdE2F+FPhJy4YFV8VS/4GaZ
+        gFarNUFdp03N7YRwiWr5pDLLKfjgfHReTeyxbvoC7ze0GbaG4YWEzjXCQnRf+qvS
+        JLy0tB9W04i2dMqu0dz4BRjUQIxXdguhpcOS5FD9l7pBFI9IWNRDAt9KRO2eZI2V
+        0wIDAQAB
+        -----END PUBLIC KEY-----
 
 # Server Configuration
 server:

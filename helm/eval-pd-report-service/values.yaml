@@ -46,6 +46,8 @@ secretProvider:
   secretKeys:
     WRITE_DB_PASSWORD: WRITE_DB_PASSWORD
     READ_DB_PASSWORD: READ_DB_PASSWORD
+    JWT_PRIVATE_KEY: JWT_PRIVATE_KEY
+    JWT_PUBLIC_KEY: JWT_PUBLIC_KEY
   k8sSecret:
     type: ""
     name: eval-pd-report-service

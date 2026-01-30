@@ -160,6 +160,19 @@ notification:
   event-type: REPORT_READY_FOR_DOWNLOAD
   level: IMMEDIATELY
 
+# Application Configuration
+app:
+  base-url: ${APP_BASE_URL:http://localhost:8080}
+
+  # Download Token JWT Configuration
+  # Private/Public keys are loaded from AWS Secrets Manager in dev/stage/prod
+  # For local development, keys are hardcoded in application-local.yml
+  download-token:
+    jwt:
+      private-key: ${JWT_PRIVATE_KEY}  # Loaded from Secrets Manager
+      public-key: ${JWT_PUBLIC_KEY}    # Loaded from Secrets Manager
+      expiration-days: 7                                   # Token expiration (7 days default)
+
 # CORS Configuration
 # Default CORS settings - Override in environment-specific profiles
 cors:

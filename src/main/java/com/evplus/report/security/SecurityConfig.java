@@ -3,7 +3,7 @@ package com.evplus.report.security;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-//import org.springframework.context.annotation.Profile;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -168,7 +168,7 @@ public class SecurityConfig {
      * - All /admin/** endpoints
      */
     @Bean
-    //@Profile({"dev","stage", "prod", "local"})
+    @Profile({"dev","stage", "prod"})
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -179,6 +179,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Public endpoints - no authentication required
                 .requestMatchers(
+                    "/r/**",                     // Download token redirect (email-safe URLs)
                     "/actuator/health/**",
                     "/actuator/info",
                     "/swagger-ui/**",
