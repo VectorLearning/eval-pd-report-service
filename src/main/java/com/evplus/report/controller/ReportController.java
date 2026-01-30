@@ -62,7 +62,7 @@ public class ReportController {
      * @param request the report request with type and criteria
      * @param userPrincipal the authenticated user (injected by Spring Security)
      * @return report response with status and data/jobId
-     */
+     **/
     @PostMapping
     @Operation(
         summary = "Generate a report",
