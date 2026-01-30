@@ -14,3 +14,4 @@ env:
   SPRING_PROFILES_ACTIVE: stage
   SQS_QUEUE_URL: https://sqs.us-east-2.amazonaws.com/760612481786/eval-pd-stage-report-service-queue
   NOTIFICATION_QUEUE_NAME: https://sqs.us-east-2.amazonaws.com/370246022780/tp7_Notifications.fifo
+  APP_BASE_URL: https://evplus-api.staging.develop.vsp-nonprod.com

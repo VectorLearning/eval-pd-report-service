@@ -14,3 +14,4 @@ env:
   SPRING_PROFILES_ACTIVE: prod
   SQS_QUEUE_URL: 
   NOTIFICATION_QUEUE_NAME: https://sqs.us-east-2.amazonaws.com/325923818481/tp1_Notifications.fifo
+  APP_BASE_URL: https://evplus-api.production.us-east-2.vsp-prod.com
