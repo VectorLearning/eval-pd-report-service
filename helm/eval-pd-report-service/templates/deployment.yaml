@@ -49,16 +49,6 @@ spec:
             secretKeyRef:
               name: {{ default (include "common.names.fullname" . ) .Values.secretProvider.k8sSecret.name }}
               key: {{ .Values.secretProvider.secretKeys.READ_DB_PASSWORD | quote }}
-        - name: {{ .Values.secretProvider.secretKeys.JWT_PRIVATE_KEY }}
-          valueFrom:
-            secretKeyRef:
-              name: {{ default (include "common.names.fullname" . ) .Values.secretProvider.k8sSecret.name }}
-              key: {{ .Values.secretProvider.secretKeys.JWT_PRIVATE_KEY | quote }}
-        - name: {{ .Values.secretProvider.secretKeys.JWT_PUBLIC_KEY }}
-          valueFrom:
-            secretKeyRef:
-              name: {{ default (include "common.names.fullname" . ) .Values.secretProvider.k8sSecret.name }}
-              key: {{ .Values.secretProvider.secretKeys.JWT_PUBLIC_KEY | quote }}
         {{- end }}
         envFrom:
           - secretRef:

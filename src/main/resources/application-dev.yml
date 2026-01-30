@@ -7,6 +7,10 @@ spring:
   #   - WRITE_DB_PASSWORD: Password for write database
   #   - READ_DB_PASSWORD: Password for read replica database
   #   - REDIS_PASSWORD: Password for Redis/ValKey
+  cloud:
+    aws:
+      secretsmanager:                                         
+        name: eval-pd-report-service/develop/service-credentials
 
 
   # Write Database Configuration (Primary/Master)
